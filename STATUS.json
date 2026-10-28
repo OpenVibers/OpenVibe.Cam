@@ -1,0 +1,62 @@
+{
+  "repository": "OpenVibers/OpenVibe.Cam",
+  "version": "0.1.0",
+  "stage": "product",
+  "code": true,
+  "wave": "W21",
+  "plan": "OpenVibe.Cam: the camera app, private cameras with revocable viewer grants, and the still Live's cam button takes — a photo and a still saved to OpenVibe.Pics by reference, with no picture bytes and no face recognition in Cam",
+  "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
+  "port": "5160",
+  "domain": "openvibe.cam",
+  "contracts": "openvibe-contracts v0.234.0",
+  "sdk": "openvibe-sdk v0.70.0",
+  "shared": "openvibe-shared v4.31.0",
+  "packages": [
+    "openvibe-contracts v0.234.0",
+    "openvibe-sdk v0.70.0",
+    "openvibe-shared v4.31.0"
+  ],
+  "summary": "OpenVibe.Cam is the camera app, the private wall for cameras a person owns, and the API Live's cam button calls. The camera preview, timer, burst, grid and filter run in the browser; a photo is posted to Cam and forwarded to OpenVibe.Pics with the person's own Network token. A camera is private: its owner sees it, and a viewer sees it only while a grant naming them is unrevoked and unexpired, checked on every read, so a revocation is refused at once. Live's cam button calls Cam with the viewer's token; Cam reads OpenVibe.Media's public live frame, saves the JPEG to Pics as that person, and returns the line Live posts in the stream's chat. Cam keeps a Pics slug, links, filter and caption — never the picture bytes — and there is no face recognition.",
+  "works": [
+    "Cameras: pair a phone, browser, Pi or IP camera; a Live stream id is read from Live and must be on the owner's channel; the slot defaults to the stream's managed slot",
+    "The owner's camera page: rename, source, status, slot and note; unpair; the private wall at /w/<id>",
+    "Viewer grants: one canonical subject and an expiry (1–90 days), @username resolved through Network identity.subject.resolve, one unrevoked grant per camera and viewer, extension instead of duplication",
+    "Revocation is immediate: the wall checks revoked_at and expires_at on every read and answers 404 to a stranger, including staff with no grant",
+    "The camera app: live preview, timer, 3-shot burst, grid, on-device colour/light/softness, caption; the picture goes to Pics",
+    "The Live cam button: POST /api/v1/stills reads Media's GET /live/:slot/frame.jpg, uploads the JPEG to Pics with the viewer's own token, and returns the chat line",
+    "Photos and stills are stored by reference (Pics slug, page link, direct link, filter, caption); no image bytes, no face template and no classification",
+    "A still is unlisted by default (the chat link opens it) or private to its owner; a photo on a camera wall is unlisted, otherwise private",
+    "Sign-in with OpenVibe.Network (PKCE S256, cam_at/cam_rt/cam_oauth), truthful readiness and loopback metrics",
+    "Account export and deletion over cameras, grants given and received, photos and stills",
+    "Server-rendered pages with stable cm- ids/classes, cache headers, discovery artifacts and deploy files"
+  ],
+  "notYet": [
+    "The public camera directory, map, categories and follow-a-cam: v2; v1 makes nothing public and queues no Search document",
+    "Timelapses, the AI highlight of the day and Vision alerts: v2; Media has no timelapse",
+    "Face to face (random/group video, CAM-3): blocked on the owner's go/no-go after the safety gate and legal review",
+    "Video capture in the camera app: MediaHub's POST /api/v1/videos chunked upload is the path; v1 stores photos and stills only",
+    "Streamerless pairing of an IP camera: ingest is Live's RTMP path; v1 pairs and reads a Live slot",
+    "A Search relay: nothing is public in v1, so there is no cam_outbox",
+    "A staff moderation screen: staff have no bypass of camera privacy; a takedown is a report to Pics or Network"
+  ],
+  "capabilitiesRegistered": false,
+  "serviceManifestRegistered": false,
+  "deployed": false,
+  "placeholderInSites": false,
+  "features": [
+    "camera app",
+    "photos to Pics",
+    "my cameras",
+    "private wall",
+    "viewer grants",
+    "grant revocation",
+    "Live cam button stills",
+    "account export and deletion",
+    "Network sign-in",
+    "server-rendered pages",
+    "discovery",
+    "deploy files"
+  ],
+  "deployment": "not deployed: the unit and nginx vhost are deploy/systemd/openvibe-cam.service and deploy/nginx/openvibe.cam.conf",
+  "updated": "2026-10-28"
+}

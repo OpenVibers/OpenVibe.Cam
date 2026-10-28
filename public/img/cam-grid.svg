@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="A camera grid">
+  <rect width="320" height="180" fill="#0b0d12"/>
+  <g stroke="#00c7d2" stroke-width="2" opacity=".75" fill="none">
+    <rect x="28" y="24" width="120" height="60" rx="8"/>
+    <rect x="172" y="24" width="120" height="60" rx="8"/>
+    <rect x="28" y="96" width="120" height="60" rx="8"/>
+    <rect x="172" y="96" width="120" height="60" rx="8"/>
+    <path d="M160 12v156M12 90h296" opacity=".3" stroke-dasharray="4 6"/>
+  </g>
+</svg>
