@@ -47,6 +47,11 @@ function renderPage(o) {
     const pathNow = o.path || '/';
     const loginNext = encodeURIComponent(pathNow);
     const canonical = `${o.config.baseUrl}${pathNow.split('?')[0]}`;
+    // An indexable page has a Markdown twin (server/agent-pages.js) and names it in the head; a page drawn
+    // for a signed-in person, or a private wall/still, is noindex and advertises none.
+    const agentHead = o.index
+        ? require('openvibe-shared/agent-layer').linkHeaderTags(canonical, `${String(o.config.baseUrl).replace(/\/+$/, '')}/llms.txt`).head
+        : '';
     const nav = {
         service: 'cam',
         apiBase: NETWORK_URL,
@@ -81,6 +86,7 @@ function renderPage(o) {
         navbar: nav,
         footer,
         head: `<meta name="referrer" content="strict-origin-when-cross-origin">
+${agentHead}
 ${appIcon.headTags({ site: 'cam' })}
 <link rel="stylesheet" href="${ovServe.url('kit.css')}">
 <link rel="stylesheet" href="${ovServe.url('room.css')}">
@@ -112,6 +118,11 @@ function send(res, status, o) {
     const personal = o.viewer && o.viewer.kind === 'user';
     if (!res.get('Cache-Control')) res.set('Cache-Control', personal ? cache.htmlHeaders({ private: true }) : (o.cache || cache.htmlHeaders({ private: true })));
     res.set('Vary', 'Cookie');
+    // An indexable page names its Markdown twin in the Link header, exactly as the agent layer's own responses do.
+    if (o.index) {
+        const canonical = `${String(o.config.baseUrl).replace(/\/+$/, '')}${String(o.path || '/').split('?')[0]}`;
+        res.set('Link', require('openvibe-shared/agent-layer').linkHeaderTags(canonical, `${String(o.config.baseUrl).replace(/\/+$/, '')}/llms.txt`).header);
+    }
     res.status(status).type('html').send(renderPage(o));
 }
 
