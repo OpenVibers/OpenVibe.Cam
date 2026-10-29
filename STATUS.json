@@ -10,11 +10,11 @@
   "domain": "openvibe.cam",
   "contracts": "openvibe-contracts v0.237.0",
   "sdk": "openvibe-sdk v0.70.0",
-  "shared": "openvibe-shared v4.37.0",
+  "shared": "openvibe-shared v4.39.0",
   "packages": [
     "openvibe-contracts v0.237.0",
     "openvibe-sdk v0.70.0",
-    "openvibe-shared v4.37.0"
+    "openvibe-shared v4.39.0"
   ],
   "summary": "OpenVibe.Cam is the camera app, the private wall for cameras a person owns, and the API Live's cam button calls. The camera preview, timer, burst, grid and filter run in the browser; a photo is posted to Cam and forwarded to OpenVibe.Pics with the person's own Network token. A camera is private: its owner sees it, and a viewer sees it only while a grant naming them is unrevoked and unexpired, checked on every read, so a revocation is refused at once. Live's cam button calls Cam with the viewer's token; Cam reads OpenVibe.Media's public live frame, saves the JPEG to Pics as that person, and returns the line Live posts in the stream's chat. Cam keeps a Pics slug, links, filter and caption — never the picture bytes — and there is no face recognition.",
   "works": [
