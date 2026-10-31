@@ -15,7 +15,7 @@ private to its owner, and a viewer sees it only while the grant the owner gave i
 - **The camera app.** A browser preview with a timer, a 3-shot burst, a grid and on-device colour, light and
   softness. The filter runs on the canvas in the person's browser; the server never applies an effect. The picture
   is posted to Cam, which forwards it to OpenVibe.Pics with the person's own Network token. There is no server-side
-  image analysis and no face recognition.
+  image analysis. Cam never looks anyone up: your cameras can learn the faces of people you name, and nobody else's face is ever looked up.
 - **My cameras.** Pair an old phone, a browser, a Pi or an IP camera you own. If a Live stream id is given, Cam
   reads it from OpenVibe.Live's public API and refuses a stream on somebody else's channel; the slot defaults to the
   stream's managed slot. Its wall is private: `/w/<id>` answers its owner and an active grantee, and 404 to
@@ -186,6 +186,6 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.237.0
-- openvibe-sdk: v0.74.0
+- openvibe-sdk: v0.77.0
 - openvibe-shared: v4.55.0
 <!-- versions:end -->
