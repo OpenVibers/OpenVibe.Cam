@@ -4,7 +4,7 @@
   "stage": "product",
   "code": true,
   "wave": "W21",
-  "plan": "OpenVibe.Cam: the camera app, private cameras with revocable viewer grants, and the still Live's cam button takes — a photo and a still saved to OpenVibe.Pics by reference, with no picture bytes and no face recognition in Cam",
+  "plan": "OpenVibe.Cam: the camera app, private cameras with revocable viewer grants, the still Live's cam button takes, and F1 familiar faces for the owner's own cameras — a photo and a still saved to OpenVibe.Pics by reference, with no picture bytes in Cam and no face template or crop here",
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": "5160",
   "domain": "openvibe.cam",
@@ -16,7 +16,7 @@
     "openvibe-sdk v0.74.0",
     "openvibe-shared v4.57.1"
   ],
-  "summary": "OpenVibe.Cam is the camera app, the private wall for cameras a person owns, and the API Live's cam button calls. The camera preview, timer, burst, grid and filter run in the browser; a photo is posted to Cam and forwarded to OpenVibe.Pics with the person's own Network token. A camera is private: its owner sees it, and a viewer sees it only while a grant naming them is unrevoked and unexpired, checked on every read, so a revocation is refused at once. Live's cam button calls Cam with the viewer's token; Cam reads OpenVibe.Media's public live frame, saves the JPEG to Pics as that person, and returns the line Live posts in the stream's chat. Cam keeps a Pics slug, links, filter and caption — never the picture bytes — and there is no face recognition.",
+  "summary": "OpenVibe.Cam is the camera app, the private wall for cameras a person owns, the API Live's cam button calls, and F1's event timeline. The camera preview, timer, burst, grid and filter run in the browser; a photo is posted to Cam and forwarded to OpenVibe.Pics with the person's own Network token. A camera is private: its owner sees it, and a viewer sees it only while a grant naming them is unrevoked and unexpired, checked on every read, so a revocation is refused at once. Familiar faces proxy the owner's own token to OpenVibe.Vision's library; Cam keeps only the Vision library id and no template or crop. A detection becomes one event with a 10 s/20 s clip reference, a still, away-mode priority, a Network notification, a private link and a police export.",
   "works": [
     "Cameras: pair a phone, browser, Pi or IP camera; a Live stream id is read from Live and must be on the owner's channel; the slot defaults to the stream's managed slot",
     "The owner's camera page: rename, source, status, slot and note; unpair; the private wall at /w/<id>",
@@ -25,6 +25,9 @@
     "The camera app: live preview, timer, 3-shot burst, grid, on-device colour/light/softness, caption; the picture goes to Pics",
     "The Live cam button: POST /api/v1/stills reads Media's GET /live/:slot/frame.jpg, uploads the JPEG to Pics with the viewer's own token, and returns the chat line",
     "Photos and stills are stored by reference (Pics slug, page link, direct link, filter, caption); no image bytes, no face template and no classification",
+    "F1 familiar faces: a camera setting (region, quiet hours), the owner's Vision library id, and proxy enrol/match/mute/delete calls with the owner's own token",
+    "F1 event timeline: person/package/vehicle/animal/loiter/door, 10 s before and 20 s after clip references, a still, away mode and louder unknown/door alerts, muted names and camera quiet hours",
+    "F1 private share links (sha256 only) and the police export file with time and place",
     "A still is unlisted by default (the chat link opens it) or private to its owner; a photo on a camera wall is unlisted, otherwise private",
     "Sign-in with OpenVibe.Network (PKCE S256, cam_at/cam_rt/cam_oauth), truthful readiness and loopback metrics",
     "Account export and deletion over cameras, grants given and received, photos and stills",
@@ -32,12 +35,15 @@
   ],
   "notYet": [
     "The public camera directory, map, categories and follow-a-cam: v2; v1 makes nothing public and queues no Search document",
-    "Timelapses, the AI highlight of the day and Vision alerts: v2; Media has no timelapse",
+    "Timelapses and the AI highlight of the day: v2; Media has no timelapse",
     "Face to face (random/group video, CAM-3): blocked on the owner's go/no-go after the safety gate and legal review",
     "Video capture in the camera app: MediaHub's POST /api/v1/videos chunked upload is the path; v1 stores photos and stills only",
     "Streamerless pairing of an IP camera: ingest is Live's RTMP path; v1 pairs and reads a Live slot",
     "A Search relay: nothing is public in v1, so there is no cam_outbox",
     "A staff moderation screen: staff have no bypass of camera privacy; a takedown is a report to Pics or Network"
+  ],
+  "outboundCapabilities": [
+    "network.notifications.push"
   ],
   "capabilitiesRegistered": false,
   "serviceManifestRegistered": false,
@@ -50,6 +56,9 @@
     "private wall",
     "viewer grants",
     "grant revocation",
+    "familiar faces (Vision library proxy)",
+    "event timeline, away mode and notifications",
+    "private event links and police export",
     "Live cam button stills",
     "account export and deletion",
     "Network sign-in",
