@@ -23,6 +23,7 @@
  * token as a Bearer; a session write must come from openvibe.cam itself (403 cam.cross_site). No route needs an app
  * or service token: the still is saved to the viewer's own Pics with the viewer's own token.
  */
+const crypto = require('crypto');
 const express = require('express');
 const { http } = require('openvibe-contracts');
 const { asyncRouter } = require('./router');
@@ -31,7 +32,7 @@ const { pairCamera, resolveViewer } = require('../cameras');
 const { frameUrl } = require('../views');
 
 function createApi(ctx) {
-    const { config, s, principal, cameras, upstreams } = ctx;
+    const { config, s, principal, cameras, upstreams, events } = ctx;
     const r = asyncRouter();
 
     r.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -89,7 +90,13 @@ function createApi(ctx) {
 
     // A JSON body everywhere except the photo upload, whose body is the picture itself.
     const jsonBody = express.json({ limit: '64kb' });
-    r.use((req, res, next) => ((req.method === 'POST' && req.path === '/photos') ? next() : jsonBody(req, res, next)));
+    const eventBody = express.json({ limit: `${config.timeline.maxBodyMb}mb` });
+    const familiarBody = express.json({ limit: `${config.timeline.maxBodyMb}mb` });
+    r.use((req, res, next) => {
+        if (req.method === 'POST' && req.path === '/photos') return next();
+        if (req.method === 'POST' && (/^\/cameras\/[^/]+\/events$/.test(req.path) || /^\/cameras\/[^/]+\/familiar-faces\/(enroll|match)$/.test(req.path))) return next();
+        return jsonBody(req, res, next);
+    });
 
     // ── Cameras ─────────────────────────────────────────────
     r.get('/cameras', requirePerson, async (req, res) => {
@@ -131,6 +138,12 @@ function createApi(ctx) {
     r.delete('/cameras/:id', requirePerson, async (req, res) => {
         const row = await ownCamera(req, res);
         if (!row) return undefined;
+        // Deleting the camera deletes its familiar-faces library too (F1). A Vision outage refuses the unpair,
+        // so the owner never leaves an unowned library behind.
+        if (row.vision_library_id) {
+            try { await upstreams.vision.deleteLibrary({ token: req.principal.token, libraryId: row.vision_library_id }); }
+            catch (err) { if (!(err && err.status === 404)) return upstreamProblem(res, err); }
+        }
         const out = await cameras.removeCamera(row.id, req.principal.subject);
         if (!out.ok) return problem(res, out.status, out.code, out.message);
         return res.status(204).end();
@@ -140,7 +153,10 @@ function createApi(ctx) {
         const wall = await cameras.wall(String(req.params.id || ''), req.principal.subject);
         if (!wall) return problem(res, 404, 'cam.not_found', 'No such camera, or you have no grant for it.');
         const camera = { ...cameras.wireCamera(wall.camera), ...(wall.owner ? {} : { notes: undefined }) };
-        if (!wall.owner) delete camera.notes;
+        if (!wall.owner) {
+            delete camera.notes;
+            for (const key of ['familiar_faces', 'vision_library_id', 'region', 'region_mode', 'quiet_hours']) delete camera[key];
+        }
         return res.json({
             camera,
             owner: wall.owner,
@@ -148,6 +164,278 @@ function createApi(ctx) {
             frame_url: frameUrl(config, camera),
             photos: wall.photos,
         });
+    });
+
+    // ── F1: familiar faces ──────────────────────────────────
+    // The owner's page talks to Cam; Cam passes the owner's own Network token to Vision and keeps no template or
+    // crop here. A proxy refusal is Vision's own problem detail.
+    async function familiarLibrary(req, res) {
+        const row = await ownCamera(req, res);
+        if (!row) return null;
+        if (!row.vision_library_id) {
+            problem(res, 409, 'cam.familiar_faces_off', 'Turn on Familiar faces for this camera first.');
+            return null;
+        }
+        return { row, libraryId: row.vision_library_id, token: req.principal.token };
+    }
+
+    r.get('/cameras/:id/familiar-faces', requirePerson, async (req, res) => {
+        const row = await ownCamera(req, res);
+        if (!row) return undefined;
+        const presence = await cameras.presenceOf(req.principal.subject);
+        let library = null;
+        if (row.vision_library_id) {
+            try { library = await upstreams.vision.getLibrary({ token: req.principal.token, libraryId: row.vision_library_id }); }
+            catch (err) { if (!(err && err.status === 404)) return upstreamProblem(res, err); }
+        }
+        return res.json({
+            camera_id: row.id,
+            enabled: Boolean(row.familiar_faces),
+            region: row.region,
+            region_mode: row.region_mode,
+            quiet_hours: row.quiet_hours,
+            away: presence.state === 'away',
+            library,
+            people: library && Array.isArray(library.people) ? library.people : [],
+        });
+    });
+
+    r.put('/cameras/:id/familiar-faces', requirePerson, async (req, res) => {
+        const row = await ownCamera(req, res);
+        if (!row) return undefined;
+        const b = req.body && typeof req.body === 'object' ? req.body : {};
+        const allowed = ['enabled', 'region', 'quiet_hours', 'threshold'];
+        const unknown = Object.keys(b).filter((k) => !allowed.includes(k));
+        if (unknown.length) return invalid(res, `Unknown field: ${unknown[0]}`);
+        if (b.enabled !== undefined && typeof b.enabled !== 'boolean') return invalid(res, 'enabled must be true or false');
+        let library = null;
+        if (b.enabled === true) {
+            try {
+                if (!row.vision_library_id) {
+                    library = await upstreams.vision.createLibrary({
+                        token: req.principal.token, cameraIds: [row.id],
+                        region: b.region == null || b.region === '' ? row.region : String(b.region).slice(0, 40),
+                        threshold: b.threshold == null ? undefined : Number(b.threshold),
+                    });
+                } else if (b.region !== undefined || b.threshold !== undefined) {
+                    library = await upstreams.vision.patchLibrary({
+                        token: req.principal.token, libraryId: row.vision_library_id,
+                        body: { ...(b.region === undefined ? {} : { region: String(b.region).slice(0, 40) }), ...(b.threshold === undefined ? {} : { threshold: Number(b.threshold) }) },
+                    });
+                }
+            } catch (err) { return upstreamProblem(res, err); }
+        }
+        const out = await cameras.setFamiliarFaces(row.id, req.principal.subject, {
+            enabled: b.enabled === undefined ? row.familiar_faces : b.enabled,
+            libraryId: library ? library.id : undefined,
+            region: library ? library.region : (b.region === undefined ? undefined : String(b.region).slice(0, 40)),
+            regionMode: library ? library.region_mode : undefined,
+            quietHours: b.quiet_hours,
+        });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        return res.json({
+            camera_id: out.camera.id, enabled: out.camera.familiar_faces, region: out.camera.region,
+            region_mode: out.camera.region_mode, quiet_hours: out.camera.quiet_hours, library,
+        });
+    });
+
+    r.delete('/cameras/:id/familiar-faces', requirePerson, async (req, res) => {
+        const row = await ownCamera(req, res);
+        if (!row) return undefined;
+        if (row.vision_library_id) {
+            try { await upstreams.vision.deleteLibrary({ token: req.principal.token, libraryId: row.vision_library_id }); }
+            catch (err) { if (!(err && err.status === 404)) return upstreamProblem(res, err); }
+        }
+        const out = await cameras.setFamiliarFaces(row.id, req.principal.subject, { enabled: false, libraryId: null });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        return res.json({ deleted: true, camera_id: row.id });
+    });
+
+    r.post('/cameras/:id/familiar-faces/enroll', requirePerson, familiarBody, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        const b = req.body && typeof req.body === 'object' ? req.body : {};
+        const image = b.image == null ? '' : String(b.image);
+        if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image)) return invalid(res, 'image must be a JPEG, PNG or WebP data URL');
+        const name = String(b.name == null ? '' : b.name).replace(/\s+/g, ' ').trim();
+        if (!name || name.length > 80) return invalid(res, 'name is 1 to 80 characters of plain text');
+        try {
+            const out = await upstreams.vision.enroll({ token: got.token, libraryId: got.libraryId, image, name, subject: b.subject == null ? null : String(b.subject) });
+            return res.status(201).json({ ...out, camera_id: got.row.id, library_id: got.libraryId });
+        } catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.post('/cameras/:id/familiar-faces/match', requirePerson, familiarBody, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        const image = req.body && req.body.image == null ? '' : String(req.body.image);
+        if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image)) return invalid(res, 'image must be a JPEG, PNG or WebP data URL');
+        try { return res.json(await upstreams.vision.match({ token: got.token, libraryId: got.libraryId, image })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.get('/cameras/:id/familiar-faces/people', requirePerson, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        try { return res.json(await upstreams.vision.people({ token: got.token, libraryId: got.libraryId })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.patch('/cameras/:id/familiar-faces/people/:personId', requirePerson, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        const b = req.body && typeof req.body === 'object' ? req.body : {};
+        const body = {};
+        if (b.name !== undefined) body.name = String(b.name);
+        if (b.muted !== undefined) body.muted = Boolean(b.muted);
+        try { return res.json(await upstreams.vision.patchPerson({ token: got.token, libraryId: got.libraryId, personId: req.params.personId, body })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.delete('/cameras/:id/familiar-faces/people/:personId', requirePerson, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        try { return res.json(await upstreams.vision.removePerson({ token: got.token, libraryId: got.libraryId, personId: req.params.personId })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.post('/cameras/:id/familiar-faces/people/:personId/request', requirePerson, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        try { return res.json(await upstreams.vision.requestConsent({ token: got.token, libraryId: got.libraryId, personId: req.params.personId })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    r.post('/cameras/:id/familiar-faces/consent-check', requirePerson, async (req, res) => {
+        const got = await familiarLibrary(req, res);
+        if (!got) return undefined;
+        try { return res.json(await upstreams.vision.checkConsent({ token: got.token, libraryId: got.libraryId })); }
+        catch (err) { return upstreamProblem(res, err); }
+    });
+
+    // ── F1: the event timeline ──────────────────────────────
+    // A detection arrives with its own clip/still reference; a person may arrive with a face crop. Cam asks Vision
+    // to match only this camera's library and keeps the event even when the match cannot run.
+    r.post('/cameras/:id/events', requirePerson, eventBody, async (req, res) => {
+        const row = await ownCamera(req, res);
+        if (!row) return undefined;
+        const out = await events.ingest({ owner: req.principal.subject, token: req.principal.token, camera: row, body: req.body || {} });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        res.set('Location', `/api/v1/events/${out.event.id}`);
+        return res.status(201).json({ event: out.event, notification: out.notification });
+    });
+
+    r.get('/cameras/:id/events', requirePerson, async (req, res) => {
+        const row = await ownCamera(req, res);
+        if (!row) return undefined;
+        const list = await cameras.eventsOf({
+            owner: req.principal.subject, cameraId: row.id,
+            limit: asInt(req.query.limit, 60), kind: req.query.kind ? String(req.query.kind) : null,
+            since: req.query.since ? String(req.query.since) : null,
+        });
+        return res.json({ count: list.length, camera_id: row.id, events: list });
+    });
+
+    r.get('/events', requirePerson, async (req, res) => {
+        const list = await cameras.eventsOf({
+            owner: req.principal.subject, limit: asInt(req.query.limit, 60),
+            kind: req.query.kind ? String(req.query.kind) : null, since: req.query.since ? String(req.query.since) : null,
+        });
+        return res.json({ count: list.length, events: list });
+    });
+
+    // A private link the owner shares; the token is returned once and only its sha256 is stored.
+    r.post('/events/:id/share', requirePerson, async (req, res) => {
+        const event = await cameras.eventById(String(req.params.id || ''), req.principal.subject);
+        if (!event) return problem(res, 404, 'cam.not_found', 'No such event.');
+        const purpose = req.body && req.body.purpose === 'police' ? 'police' : 'link';
+        const days = Math.min(config.timeline.shareDays, Math.max(1, asInt(req.body && req.body.days, config.timeline.shareDays)));
+        const token = crypto.randomBytes(24).toString('base64url');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const expiresAt = new Date(s.now() + days * 86_400_000).toISOString();
+        const out = await cameras.shareEvent({ eventId: event.id, owner: req.principal.subject, purpose, tokenHash, expiresAt });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        const base = String(config.baseUrl).replace(/\/+$/, '');
+        return res.status(201).json({
+            share: out.share, purpose, token,
+            url: `${base}/e/${token}`,
+            api_url: `${base}/api/v1/events/shared/${token}`,
+            expires_at: expiresAt,
+        });
+    });
+
+    r.get('/events/shared/:token', async (req, res) => {
+        const raw = String(req.params.token || '');
+        if (!/^[A-Za-z0-9_-]{20,80}$/.test(raw)) return problem(res, 404, 'cam.not_found', 'No such shared event.');
+        const got = await cameras.eventByShare(crypto.createHash('sha256').update(raw).digest('hex'));
+        if (!got) return problem(res, 404, 'cam.not_found', 'No such shared event.');
+        return res.json({ event: got.event, purpose: got.purpose, expires_at: got.expires_at });
+    });
+
+    r.get('/events/:id/export', requirePerson, async (req, res) => {
+        const row = await cameras.eventById(String(req.params.id || ''), req.principal.subject);
+        if (!row) return problem(res, 404, 'cam.not_found', 'No such event.');
+        const camera = await cameras.cameraById(row.camera_id);
+        const file = {
+            kind: 'cam.event.police-export',
+            version: 1,
+            exported_at: new Date(s.now()).toISOString(),
+            event: {
+                id: row.id, kind: row.kind, at: row.at, title: row.title,
+                person_name: row.person_name, known: row.known,
+                still_url: row.still_url, clip: row.clip,
+                time: row.at, place: row.location,
+            },
+            camera: camera ? { id: camera.id, name: camera.name } : { id: row.camera_id, name: null },
+            note: 'This file records the event time and place and links to the still and the clip. The clip itself stays in the private reference.',
+        };
+        res.setHeader('Content-Disposition', `attachment; filename="cam-event-${row.id}.json"`);
+        return res.type('application/json').send(JSON.stringify(file, null, 2));
+    });
+
+    r.post('/events/:id/police', requirePerson, async (req, res) => {
+        const event = await cameras.eventById(String(req.params.id || ''), req.principal.subject);
+        if (!event) return problem(res, 404, 'cam.not_found', 'No such event.');
+        const base = String(config.baseUrl).replace(/\/+$/, '');
+        return res.json({
+            event_id: event.id,
+            download_url: `${base}/api/v1/events/${event.id}/export`,
+            purpose: 'police',
+            time: event.at,
+            place: event.location,
+            clip: event.clip,
+            still_url: event.still_url,
+        });
+    });
+
+    r.get('/events/:id', requirePerson, async (req, res) => {
+        const event = await cameras.eventById(String(req.params.id || ''), req.principal.subject);
+        if (!event) return problem(res, 404, 'cam.not_found', 'No such event.');
+        return res.json({ event });
+    });
+
+    r.patch('/events/:id', requirePerson, async (req, res) => {
+        const b = req.body && typeof req.body === 'object' ? req.body : {};
+        const out = await cameras.annotateEvent(String(req.params.id || ''), req.principal.subject, {
+            personName: b.person_name, personId: b.person_id, muted: b.muted,
+        });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        return res.json({ event: out.event });
+    });
+
+    // ── F1: away mode ───────────────────────────────────────
+    r.get('/presence', requirePerson, async (req, res) => {
+        const presence = await cameras.presenceOf(req.principal.subject);
+        return res.json({ presence });
+    });
+
+    r.put('/presence', requirePerson, async (req, res) => {
+        const b = req.body && typeof req.body === 'object' ? req.body : {};
+        const out = await cameras.setPresence(req.principal.subject, {
+            state: b.state, source: b.source || 'browser', cameraId: b.camera_id == null || b.camera_id === '' ? null : String(b.camera_id),
+        });
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        return res.json({ presence: out.presence });
     });
 
     // ── Viewer grants ───────────────────────────────────────

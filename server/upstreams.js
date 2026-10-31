@@ -21,7 +21,7 @@ class UpstreamError extends Error {
 }
 
 function createUpstreams({ config, fetchImpl = globalThis.fetch, log = console }) {
-    const { media, live, pics, timeoutMs } = config.upstreams;
+    const { media, live, pics, vision, timeoutMs } = config.upstreams;
     const base = (u) => String(u).replace(/\/+$/, '');
     const ua = () => `OpenVibe.Cam/0.1 (+${config.baseUrl})`;
 
@@ -139,7 +139,72 @@ function createUpstreams({ config, fetchImpl = globalThis.fetch, log = console }
         return { ok: true, subject, username: data.username || name, display_name: data.display_name || data.username || name };
     }
 
-    return { liveStream, liveFrame, picsUpload, resolveUsername, UpstreamError, base };
+    // ── F1: the owner's own Vision face library, with the owner's own Network token ──
+    // Cam never holds a template or a crop; these calls pass the person's token and Vision decides ownership,
+    // consent and encryption. A refusal is Vision's problem code, not a silent empty match.
+    async function visionCall(path, { token, method = 'GET', json = null, timeout = Math.max(timeoutMs, 10_000) } = {}) {
+        if (!token) throw new UpstreamError('cam.vision.sign_in_required', 'the camera owner\'s Network token is needed for the face library', { status: 401 });
+        const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+        let body = null;
+        if (json !== null) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(json); }
+        let res;
+        try {
+            res = await call(`${base(vision)}${path}`, { method, headers, body, timeout });
+        } catch (err) {
+            throw new UpstreamError('cam.vision.unavailable', 'OpenVibe.Vision did not answer', { cause: err });
+        }
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            const code = data && typeof data.code === 'string' && /^[a-z][a-z0-9._-]{1,80}$/.test(data.code) ? data.code : 'cam.vision.refused';
+            const detail = data && typeof data.detail === 'string' ? data.detail.slice(0, 240) : `OpenVibe.Vision answered ${res.status}`;
+            throw new UpstreamError(code, detail, { status: res.status >= 400 && res.status < 500 ? res.status : 502 });
+        }
+        return data;
+    }
+
+    const visionApi = {
+        createLibrary: ({ token, cameraIds, region, threshold }) => visionCall('/api/v1/faces/libraries', { token, method: 'POST', json: { camera_ids: cameraIds, region, ...(threshold == null ? {} : { threshold }) } }),
+        getLibrary: ({ token, libraryId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}`, { token }),
+        patchLibrary: ({ token, libraryId, body }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}`, { token, method: 'PATCH', json: body }),
+        deleteLibrary: ({ token, libraryId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}`, { token, method: 'DELETE' }),
+        enroll: ({ token, libraryId, image, name, subject }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/enroll`, {
+            token, method: 'POST', json: { image, name, ...(subject ? { subject } : {}) },
+        }),
+        match: ({ token, libraryId, image }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/match`, { token, method: 'POST', json: { image } }),
+        people: ({ token, libraryId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/people`, { token }),
+        patchPerson: ({ token, libraryId, personId, body }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/people/${encodeURIComponent(personId)}`, { token, method: 'PATCH', json: body }),
+        removePerson: ({ token, libraryId, personId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/people/${encodeURIComponent(personId)}`, { token, method: 'DELETE' }),
+        requestConsent: ({ token, libraryId, personId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/people/${encodeURIComponent(personId)}/request`, { token, method: 'POST' }),
+        checkConsent: ({ token, libraryId }) => visionCall(`/api/v1/faces/libraries/${encodeURIComponent(libraryId)}/consent-check`, { token, method: 'POST' }),
+    };
+
+    // ── Network notifications: one per event, as Cam's own service token ──
+    const notifyTokens = config.oauth.clientSecret
+        ? createServiceTokenClient({
+            tokenUrl: `${config.networkInternalUrl}/oauth/token`, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
+            audience: 'openvibe.network', scope: config.timeline.notificationScope, fetch: fetchImpl,
+        })
+        : null;
+
+    async function pushNotification({ subject, title, message, priority = 'normal', url = null, type = 'CAM_EVENT', category = 'cam' } = {}) {
+        if (!notifyTokens) return { sent: false, skipped: 'not_configured' };
+        let token;
+        try { token = await notifyTokens.getToken(); } catch { return { sent: false, skipped: 'token_unavailable' }; }
+        let res;
+        try {
+            res = await call(`${config.networkInternalUrl}/internal/notifications/push`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject, type, category, priority, service: config.timeline.notificationService, title, message, url }),
+                timeout: timeoutMs,
+            });
+        } catch { return { sent: false, skipped: 'unreachable' }; }
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.ok !== true) return { sent: false, skipped: 'refused', status: res.status };
+        return { sent: !data.skipped, notification_id: data.notification ? data.notification.id : null };
+    }
+
+    return { liveStream, liveFrame, picsUpload, resolveUsername, vision: visionApi, pushNotification, UpstreamError, base };
 }
 
 module.exports = { createUpstreams, UpstreamError, USERNAME_RE };
