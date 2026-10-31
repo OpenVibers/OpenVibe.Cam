@@ -58,18 +58,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .cm-count { min-width: 28px; padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--room-accent) 16%, transparent); color: var(--room-strong); font-weight: 800; font-size: .8rem; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* The motif: an iris opening onto a contact sheet */
-.cm-shutter { position: relative; width: min(100%, 420px); aspect-ratio: 1; margin: 0 auto; color: var(--room-accent); }
-.cm-iris { position: absolute; inset: 8% 30% 30% 8%; width: 62%; height: 62%; }
-html.ov-motion .cm-iris path { transform-box: view-box; animation: cm-iris 6s cubic-bezier(.4,0,.2,1) infinite; }
-@keyframes cm-iris { 0%, 100% { opacity: .75; } 45%, 55% { opacity: .2; } }
-.cm-frame-grid { position: absolute; right: 4%; bottom: 6%; width: 52%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.cm-frame { aspect-ratio: 4 / 3; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--room-accent) 45%, transparent); background: color-mix(in srgb, var(--room-accent) 10%, var(--bg-card, #0f1729)); }
-.cm-frame-1, .cm-frame-5 { background: color-mix(in srgb, var(--room-accent) 32%, var(--bg-card, #0f1729)); }
-html.ov-motion .cm-frame { animation: cm-pop .5s cubic-bezier(.2,.7,.2,1) both; }
-html.ov-motion .cm-frame-2 { animation-delay: .08s; } html.ov-motion .cm-frame-3 { animation-delay: .16s; } html.ov-motion .cm-frame-4 { animation-delay: .24s; }
-html.ov-motion .cm-frame-5 { animation-delay: .32s; } html.ov-motion .cm-frame-6 { animation-delay: .4s; }
-@keyframes cm-pop { from { opacity: 0; transform: translateY(6px) scale(.96); } }
-@media (max-width: 759px) { .cm-shutter { width: 220px; } }
 
 /* The camera: a dark viewfinder with thirds, the controls beside it on a wide screen */
 .cm-camera { display: grid; gap: 14px; margin-top: 18px; }
@@ -120,11 +108,96 @@ html.ov-motion .cm-frame-5 { animation-delay: .32s; } html.ov-motion .cm-frame-6
 .cm-grants th, .cm-grants td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border, #1f2d47); white-space: nowrap; }
 .cm-grants tr:last-child td { border-bottom: 0; }
 .cm-grants th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
-@media (prefers-reduced-motion: reduce) { .cm-iris path, .cm-frame { animation: none !important; } }
 
 /* Phones: the motif is a faint corner mark behind the hero text, so it drops the contact sheet and fades the iris */
-@media (max-width: 759px) { .cm-frame-grid { display: none; } .cm-iris { opacity: .3; } }
 /* The controls read top to bottom: power and shutter, the settings, then the two toggles side by side */
 .cm-controls [data-cm-start], .cm-controls [data-cm-shoot] { order: 1; }
 .cm-controls .cm-field { order: 2; }
 .cm-controls [data-cm-burst], .cm-controls [data-cm-grid-toggle] { order: 3; justify-content: center; }
+
+/* ── The home's scenes, shown for real (10-31): a live frame and its still, a camera's grant, the filters ── */
+/* The filters, the same CSS as public/js/cam.js's FILTERS (test/home-scenes.test.js keeps them equal). */
+.cm-f-none { filter: none; }
+.cm-f-mono { filter: grayscale(1) contrast(1.08); }
+.cm-f-warm { filter: sepia(.35) saturate(1.15); }
+.cm-f-cool { filter: hue-rotate(-10deg) saturate(1.1); }
+.cm-f-fade { filter: saturate(.8) contrast(.92) brightness(1.06); }
+.cm-f-vivid { filter: saturate(1.45) contrast(1.06); }
+.cm-f-blur { filter: blur(1.5px); }
+
+.cm-demo-live, .cm-demo-filters { margin: 0; display: grid; gap: 10px; width: min(380px, 100%); justify-self: center; }
+.cm-live-frame { position: relative; overflow: hidden; border-radius: 14px; aspect-ratio: 4 / 3; box-shadow: 0 24px 50px -30px rgba(0, 0, 0, .7); }
+.cm-live-frame img, .cm-f-main img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cm-live-badge { position: absolute; top: 10px; left: 10px; padding: 3px 8px; border-radius: 6px; background: var(--ovk-live, #ef4444); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.cm-live-btn { position: absolute; right: 10px; bottom: 10px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(10, 12, 18, .66); color: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, .7);
+  animation: cmPress var(--ov-dur-2, .2s) var(--ov-ease-out, ease-out) both; animation-delay: var(--ov-dur-4, .52s); }
+.cm-live-btn .ovk-i { width: 20px; height: 20px; }
+.cm-live-flash { position: absolute; inset: 0; background: #fff; opacity: 0;
+  animation: cmFlash var(--ov-dur-4, .52s) var(--ov-ease-out, ease-out) both; animation-delay: calc(var(--ov-dur-4, .52s) + var(--ov-dur-1, .12s)); }
+.cm-live-chat { margin: 0; padding: 9px 12px; border-radius: 12px; background: var(--ovk-panel); border: 1px solid var(--ovk-line); font-size: 14px;
+  animation: cmRise var(--ov-dur-3, .32s) var(--ov-ease-out, ease-out) both; animation-delay: calc(var(--ov-dur-4, .52s) * 2); }
+.cm-live-who { font-weight: 700; color: var(--room-strong, var(--ovk-accent)); }
+@keyframes cmPress { 50% { transform: scale(.88); } }
+@keyframes cmFlash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes cmRise { from { opacity: 0; transform: translateY(8px); } }
+
+.cm-demo-grant { display: grid; gap: 10px; width: min(380px, 100%); justify-self: center; padding: 12px; border-radius: 16px;
+  background: var(--ovk-panel); border: 1px solid var(--ovk-line); box-shadow: 0 24px 50px -30px rgba(0, 0, 0, .6); }
+.cm-g-cam { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.cm-g-cam img { width: 64px; height: 48px; border-radius: 8px; object-fit: cover; }
+.cm-g-name { display: grid; min-width: 0; }
+.cm-g-name span { color: var(--ovk-muted); font-size: 13px; }
+.cm-g-lock { color: var(--room-accent, var(--ovk-accent)); }
+.cm-g-lock svg { width: 20px; height: 20px; display: block; }
+.cm-g-grant { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 10px 12px; border-radius: 12px;
+  background: var(--ovk-panel-2); }
+.cm-g-who { font-weight: 700; }
+.cm-g-left { color: var(--ovk-muted); font-size: 13px; text-align: right; }
+.cm-g-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--ovk-line); overflow: hidden; }
+.cm-g-bar i { display: block; width: 71%; height: 100%; border-radius: inherit; background: var(--room-accent, var(--ovk-accent));
+  transform-origin: 0 50%; animation: cmGrow var(--ov-dur-4, .52s) var(--ov-ease-out, ease-out) both; }
+.cm-g-revoke { grid-column: 1 / -1; justify-self: start; font-size: 13px; font-weight: 700; color: var(--ovk-bad, #ef4444); }
+@keyframes cmGrow { from { transform: scaleX(0); } }
+
+.cm-f-main { position: relative; overflow: hidden; border-radius: 14px; aspect-ratio: 4 / 3; box-shadow: 0 24px 50px -30px rgba(0, 0, 0, .7); }
+.cm-f-saved { position: absolute; left: 10px; bottom: 10px; padding: 5px 10px; border-radius: 999px; background: rgba(10, 12, 18, .7); color: #fff;
+  font-size: 12.5px; font-weight: 700; animation: cmRise var(--ov-dur-3, .32s) var(--ov-ease-out, ease-out) both; animation-delay: var(--ov-dur-4, .52s); }
+.cm-f-strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cm-f-strip li { display: grid; gap: 4px; justify-items: center; font-size: 11px; color: var(--ovk-muted); }
+.cm-f-strip img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; outline: 2px solid transparent; outline-offset: 1px; }
+.cm-f-strip li.is-on { color: var(--ovk-text); font-weight: 700; }
+.cm-f-strip li.is-on img { outline-color: var(--room-accent, var(--ovk-accent)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-live-btn, .cm-live-flash, .cm-live-chat, .cm-g-bar i, .cm-f-saved { animation: none; }
+}
+
+/* The room's motif: the camera's viewfinder on the sample picture. The focus square locks once and the shutter waits;
+   nothing loops. */
+.cm-vf { position: relative; width: min(100%, 420px); aspect-ratio: 4 / 3; margin: 0 auto; border-radius: 22px; overflow: hidden;
+  box-shadow: 0 40px 80px -40px rgba(0, 0, 0, .75), 0 0 0 1px color-mix(in srgb, var(--room-accent) 30%, transparent); }
+.cm-vf img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cm-vf-c { position: absolute; width: 28px; height: 28px; border: 0 solid rgba(255, 255, 255, .9); }
+.cm-vf-c.tl { top: 14px; left: 14px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
+.cm-vf-c.tr { top: 14px; right: 14px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
+.cm-vf-c.bl { bottom: 14px; left: 14px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
+.cm-vf-c.br { bottom: 14px; right: 14px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
+.cm-vf-focus { position: absolute; left: 60%; top: 42%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid #ffd27a; border-radius: 10px;
+  animation: cmFocus var(--ov-dur-4, .52s) var(--ov-ease-spring, cubic-bezier(.34, 1.56, .64, 1)) both; animation-delay: var(--ov-dur-3, .32s); }
+@keyframes cmFocus { from { transform: scale(1.5); opacity: 0; } }
+.cm-vf-top { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 4px 10px; border-radius: 999px;
+  background: rgba(10, 12, 18, .6); color: #fff; font-size: 12px; }
+.cm-vf-top b { color: #ffd27a; }
+.cm-vf-shutter { position: absolute; left: 50%; bottom: 18px; width: 54px; height: 54px; margin-left: -27px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 4px rgba(10, 12, 18, .45), 0 0 0 7px rgba(255, 255, 255, .85); }
+.cm-live-btn svg { width: 20px; height: 20px; display: block; }
+/* On a phone the room kit turns its picture into a faint corner decoration; Cam's picture is the product, so it
+   stays in the page, under the buttons, at full strength. */
+@media (max-width: 759px) {
+  .cm-home .sc-room-pic { position: static; z-index: auto; width: auto; opacity: 1; margin-top: 18px; pointer-events: auto; }
+  .cm-vf { width: min(100%, 280px); border-radius: 18px; }
+  .cm-vf-shutter { width: 44px; height: 44px; margin-left: -22px; bottom: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .cm-vf-focus { animation: none; } }
