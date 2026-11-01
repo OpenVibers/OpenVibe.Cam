@@ -201,3 +201,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
   .cm-vf-shutter { width: 44px; height: 44px; margin-left: -22px; bottom: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .cm-vf-focus { animation: none; } }
+
+/* A code sample scrolls inside its own box; a long line never widens the page on a phone (11-01 phone sweep). */
+.cm-code { max-width: 100%; overflow-x: auto; padding: 12px 14px; border: 1px solid var(--border, #26344d); border-radius: 12px; background: var(--bg-card, #0f1729); font-size: .84rem; line-height: 1.5; }
