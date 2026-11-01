@@ -219,3 +219,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
     .table-wrap > table:has(thead th:nth-child(3)) td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
     .table-wrap > table:has(thead th:nth-child(3)) td:empty { display: none; }
 }
+
+/* Inline code in prose breaks anywhere: a full URL in a step ran 61 px past a 320 px screen (2026-11-01). */
+.cm-steps code, .cm-fine code, main li code, main p code { overflow-wrap: anywhere; }
