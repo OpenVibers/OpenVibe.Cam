@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <!-- Cam's sample picture: a ridge at golden hour, drawn rather than photographed so it shows no one. Its warm sky,
+       blue water and green trees make every filter on the home page visibly different. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b5bb8"/>
+      <stop offset=".45" stop-color="#e98a6b"/>
+      <stop offset=".72" stop-color="#ffc56b"/>
+    </linearGradient>
+    <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2a26e"/>
+      <stop offset=".35" stop-color="#5f79b8"/>
+      <stop offset="1" stop-color="#22345f"/>
+    </linearGradient>
+    <radialGradient id="sun" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fff4cf"/>
+      <stop offset=".55" stop-color="#ffd27a"/>
+      <stop offset="1" stop-color="#ffd27a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="240" fill="url(#sky)"/>
+  <circle cx="214" cy="118" r="46" fill="url(#sun)"/>
+  <circle cx="214" cy="118" r="17" fill="#fff6d8"/>
+  <path d="M0 132 L38 104 L70 120 L112 82 L150 112 L182 96 L230 128 L268 100 L320 124 V160 H0 Z" fill="#7d5a8c" opacity=".85"/>
+  <path d="M0 146 L44 122 L88 138 L132 112 L176 136 L214 122 L262 140 L320 128 V160 H0 Z" fill="#4c3f6b"/>
+  <rect y="158" width="320" height="82" fill="url(#lake)"/>
+  <ellipse cx="214" cy="170" rx="30" ry="3" fill="#fff1c8" opacity=".85"/>
+  <ellipse cx="214" cy="180" rx="20" ry="2" fill="#fff1c8" opacity=".6"/>
+  <ellipse cx="214" cy="189" rx="12" ry="1.6" fill="#fff1c8" opacity=".4"/>
+  <path d="M0 240 V196 Q40 186 84 198 T170 204 L170 240 Z" fill="#1f3a2c"/>
+  <g fill="#2f6b45">
+    <path d="M30 202 L42 160 L54 202 Z"/>
+    <path d="M52 206 L66 150 L80 206 Z"/>
+    <path d="M78 204 L88 172 L98 204 Z"/>
+    <path d="M110 208 L122 176 L134 208 Z"/>
+  </g>
+  <g fill="#3f8a59" opacity=".9">
+    <path d="M58 182 L66 158 L74 182 Z"/>
+    <path d="M36 188 L42 168 L48 188 Z"/>
+  </g>
+  <g stroke="#2a1f3d" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7">
+    <path d="M150 70 q4 -4 8 0 q4 -4 8 0"/>
+    <path d="M176 58 q3 -3 6 0 q3 -3 6 0"/>
+  </g>
+</svg>

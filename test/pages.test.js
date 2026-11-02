@@ -26,7 +26,7 @@ function jsonLd(html) {
             assert.strictEqual(r.status, 200);
             assert.strictEqual(r.headers.get('cache-control'), 'public, max-age=60');
             assert.strictEqual(r.headers.get('vary'), 'Cookie');
-            for (const marker of ['id="cm-home"', 'class="sc-room', 'id="cm-rules"', 'Nothing public without its owner', 'No face recognition', '/img/cam-shutter.svg', 'href="/app"']) assert.ok(r.text.includes(marker), marker);
+            for (const marker of ['id="cm-home"', 'class="sc-room', 'id="cm-rules"', 'Nothing public without its owner', 'No face recognition', '/img/cam-sample.svg', 'href="/app"']) assert.ok(r.text.includes(marker), marker);
             assert.match(r.text, /<main id="main"/);
             assert.match(r.text, /<footer id="ov-footer"/);
             const types = jsonLd(r.text).map((x) => x['@type']);
