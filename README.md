@@ -97,6 +97,22 @@ per-actor minute/hour limits (`CAM_LIMITS_MINUTE`, `CAM_LIMITS_HOUR`).
 | `POST /stills` | a person; `{ slot, caption?, stream_id?, w?, visibility? }`; Media's frame → Pics → a still and the chat line |
 | `GET /stills` | your stills |
 | `GET /stills/:id` | an unlisted still by its link; a private one only for its owner |
+| `GET/PUT/DELETE /cameras/:id/familiar-faces` | the owner: turn Familiar faces on/off, set its region and quiet hours; on creates the owner's Vision library |
+| `POST /cameras/:id/familiar-faces/enroll` · `/match` · `GET /people` | the owner, proxied to Vision with the owner's own token; Cam keeps no template or crop |
+| `PATCH/DELETE /cameras/:id/familiar-faces/people/:personId` · `POST …/request` · `POST …/consent-check` | the owner: mute/rename/delete a name, or send/re-check its consent request |
+| `POST /cameras/:id/events` | the owner or camera: `{ kind, at?, still_url?, clip_url?, face_image?, face_image_url?, place?, lat?, lng?, linger_seconds? }`; one timeline event |
+| `GET /cameras/:id/events` · `GET /events` | the owner's timeline, newest first (`limit`, `kind`, `since`) |
+| `GET/PATCH /events/:id` · `POST /events/:id/share` · `POST /events/:id/police` · `GET /events/:id/export` | read, mark "this is X", a private link, or the police download (time, place, still and clip references) |
+| `GET /events/shared/:token` | anyone with the private token; the event, never the owner's account |
+| `GET/PUT /presence` | the owner's own home/away, from the browser, phone or Node |
+
+### Familiar faces and the timeline (F1)
+
+A camera's Familiar faces setting is `familiar_faces`; when it is on, Cam creates an OpenVibe.Vision library for that camera and stores only its `vision_library_id`, `region` and `region_mode`. The owner's own Network token is forwarded to Vision for every library call, so Vision decides ownership, encryption and consent; Cam holds no template and no crop. Deleting the camera deletes its Vision library first.
+
+An event is one detection: `person`, `package`, `vehicle`, `animal`, `loiter` or `door`. A person event may carry a face crop; only then does Cam ask Vision to match inside that camera's library. The event keeps a still and a clip reference plus `clip.before_seconds` (default 10) and `clip.after_seconds` (default 20), the owner's `away` state at that moment, and `priority: "high"` for an unknown person or a door while away. Detection without identity — package, vehicle, animal, loitering, door — never needs a face.
+
+One Network notification is pushed per event unless the matched name is muted or the camera's `quiet_hours` cover the event time; the event is still stored. `POST /events/:id/share` returns a private link once (only its sha256 is stored), and `GET /events/:id/export` returns an `attachment` file with the time and place for "Send to police". `OV_VISION_URL`, `CAM_CLIP_BEFORE_SECONDS`, `CAM_CLIP_AFTER_SECONDS`, `CAM_EVENT_MAX_BODY_MB`, `CAM_EVENT_SHARE_DAYS` and `CAM_NOTIFICATION_SCOPE` configure the path.
 
 Validation refusals are `400 { code: "cam.invalid", message }`; a blocked caption is `400 { code:
 "cam.blocked_words" }`. Other codes: `cam.sign_in_required`, `cam.person_required`, `cam.cross_site`,
