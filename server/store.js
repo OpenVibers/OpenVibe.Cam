@@ -11,6 +11,10 @@ const SOURCES = Object.freeze(['browser', 'phone', 'pi', 'ip']);
 const STATUSES = Object.freeze(['paired', 'live', 'offline']);
 const FILTERS = Object.freeze(['none', 'mono', 'warm', 'cool', 'fade', 'vivid', 'blur']);
 const STILL_VISIBILITIES = Object.freeze(['unlisted', 'private']);
+const EVENT_KINDS = Object.freeze(['person', 'package', 'vehicle', 'animal', 'loiter', 'door']);
+const PRIORITIES = Object.freeze(['low', 'normal', 'high', 'critical']);
+const PRESENCE = Object.freeze(['home', 'away']);
+const SHARE_PURPOSES = Object.freeze(['link', 'police']);
 const PHOTO_VISIBILITIES = Object.freeze(['private', 'unlisted']);
 const CAPTION_MAX = 280;
 const NAME_MAX = 80;
@@ -61,6 +65,11 @@ function wireCamera(row) {
         slot: row.slot == null ? null : row.slot,
         notes: row.notes == null ? null : row.notes,
         owner_username: row.owner_username == null ? null : row.owner_username,
+        familiar_faces: Boolean(row.familiar_faces),
+        vision_library_id: row.vision_library_id == null ? null : row.vision_library_id,
+        region: row.region == null ? 'unknown' : row.region,
+        region_mode: row.region_mode == null ? 'strict' : row.region_mode,
+        quiet_hours: row.quiet_hours == null ? null : row.quiet_hours,
         paired_at: iso(row.paired_at),
         last_seen_at: iso(row.last_seen_at),
         created_at: iso(row.created_at),
@@ -82,6 +91,54 @@ function wireGrant(row, { now = Date.now() } = {}) {
         expires_at: iso(row.expires_at),
         revoked_at: iso(row.revoked_at),
         active: !revoked && !expired,
+    };
+}
+
+function wireEvent(row) {
+    if (!row) return null;
+    const clip = row.clip_url == null ? null : {
+        url: row.clip_url,
+        before_seconds: Number(row.clip_before_seconds) || 0,
+        after_seconds: Number(row.clip_after_seconds) || 0,
+    };
+    const location = row.place == null && row.lat == null && row.lng == null ? null : {
+        place: row.place == null ? null : row.place,
+        lat: row.lat == null ? null : Number(row.lat),
+        lng: row.lng == null ? null : Number(row.lng),
+    };
+    let metadata = row.metadata;
+    if (typeof metadata === 'string') { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
+    return {
+        id: row.id,
+        camera_id: row.camera_id,
+        kind: row.kind,
+        at: iso(row.at),
+        title: row.title,
+        detail: row.detail == null ? null : row.detail,
+        person_id: row.person_id == null ? null : row.person_id,
+        person_name: row.person_name == null ? null : row.person_name,
+        known: Boolean(row.known),
+        muted: Boolean(row.muted),
+        away: Boolean(row.away),
+        priority: row.priority,
+        still_url: row.still_url == null ? null : row.still_url,
+        clip,
+        location,
+        metadata: metadata && typeof metadata === 'object' ? metadata : {},
+        notified: Boolean(row.notified),
+        created_at: iso(row.created_at),
+    };
+}
+
+function wireShare(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        event_id: row.event_id,
+        purpose: row.purpose,
+        expires_at: iso(row.expires_at),
+        revoked_at: iso(row.revoked_at),
+        created_at: iso(row.created_at),
     };
 }
 
@@ -358,6 +415,132 @@ function createStore(s, { config }) {
         return rows.map((r) => wireStill(r, { owner: true }));
     }
 
+    // ── F1: familiar-faces setting, presence, events and shared links ──
+    async function setFamiliarFaces(id, owner, { enabled, libraryId, region, regionMode, quietHours } = {}) {
+        const row = await cameraById(id);
+        if (!row || row.owner !== owner) return refusal(404, 'cam.not_found', 'No such camera.');
+        const sets = [];
+        const args = [id];
+        if (enabled !== undefined) { args.push(Boolean(enabled)); sets.push(`familiar_faces=$${args.length}`); }
+        if (libraryId !== undefined) { args.push(libraryId == null ? null : String(libraryId)); sets.push(`vision_library_id=$${args.length}`); }
+        if (region !== undefined) { args.push(String(region).slice(0, 40)); sets.push(`region=$${args.length}`); }
+        if (regionMode !== undefined) {
+            if (!['strict', 'open'].includes(regionMode)) return refusal(400, 'cam.invalid', 'region_mode must be strict or open', 'region_mode');
+            args.push(regionMode); sets.push(`region_mode=$${args.length}`);
+        }
+        if (quietHours !== undefined) {
+            const q = quietHours && typeof quietHours === 'object' ? quietHours : {};
+            const tz = q.tz == null ? 'UTC' : String(q.tz).slice(0, 64);
+            try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }); } catch { return refusal(400, 'cam.invalid', 'quiet_hours.tz is not a time zone', 'quiet_hours'); }
+            for (const k of ['start', 'end']) {
+                if (q[k] != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(q[k]))) return refusal(400, 'cam.invalid', `quiet_hours.${k} must be HH:MM`, 'quiet_hours');
+            }
+            args.push(JSON.stringify({ enabled: Boolean(q.enabled), start: q.start || '22:00', end: q.end || '07:00', tz }));
+            sets.push(`quiet_hours=$${args.length}::jsonb`);
+        }
+        if (!sets.length) return refusal(400, 'cam.invalid', 'Send enabled, region or quiet_hours', null);
+        args.push(clock());
+        const updated = await db.maybe(`UPDATE cam_cameras SET ${sets.join(', ')}, updated_at=$${args.length}::timestamptz WHERE id=$1 RETURNING *`, args);
+        return { ok: true, camera: wireCamera(updated) };
+    }
+
+    async function presenceOf(owner) {
+        const row = await db.maybe('SELECT * FROM cam_presence WHERE owner=$1', [owner]);
+        return row ? {
+            owner: row.owner, state: row.state, source: row.source,
+            camera_id: row.camera_id == null ? null : row.camera_id,
+            updated_at: iso(row.updated_at),
+        } : { owner, state: 'home', source: 'browser', camera_id: null, updated_at: null };
+    }
+
+    async function setPresence(owner, { state, source = 'browser', cameraId = null } = {}) {
+        if (!PRESENCE.includes(state)) return refusal(400, 'cam.invalid', 'state must be home or away', 'state');
+        if (!['browser', 'phone', 'node'].includes(source)) return refusal(400, 'cam.invalid', 'source must be browser, phone or node', 'source');
+        if (cameraId != null) {
+            const cam = await cameraById(cameraId);
+            if (!cam || cam.owner !== owner) return refusal(404, 'cam.not_found', 'No such camera.');
+        }
+        const row = await db.maybe(`INSERT INTO cam_presence (owner, state, source, camera_id, updated_at)
+            VALUES ($1,$2,$3,$4,$5::timestamptz)
+            ON CONFLICT (owner) DO UPDATE SET state=EXCLUDED.state, source=EXCLUDED.source, camera_id=EXCLUDED.camera_id, updated_at=EXCLUDED.updated_at
+            RETURNING *`, [owner, state, source, cameraId, clock()]);
+        return { ok: true, presence: { owner: row.owner, state: row.state, source: row.source, camera_id: row.camera_id, updated_at: iso(row.updated_at) } };
+    }
+
+    async function createEvent({ cameraId, owner, kind, at, title, detail = null, personId = null, personName = null, known = false, muted = false, away = false, priority = 'normal', stillUrl = null, clipUrl = null, clipBefore = config.timeline.clipBeforeSeconds, clipAfter = config.timeline.clipAfterSeconds, place = null, lat = null, lng = null, metadata = {}, notified = false }) {
+        if (!EVENT_KINDS.includes(kind)) return refusal(400, 'cam.invalid', `kind must be one of ${EVENT_KINDS.join(', ')}`, 'kind');
+        if (!PRIORITIES.includes(priority)) return refusal(400, 'cam.invalid', `priority must be one of ${PRIORITIES.join(', ')}`, 'priority');
+        if (stillUrl != null && !/^https?:\/\//.test(String(stillUrl))) return refusal(400, 'cam.invalid', 'still_url must be an http(s) URL', 'still_url');
+        if (clipUrl != null && !/^https?:\/\//.test(String(clipUrl))) return refusal(400, 'cam.invalid', 'clip_url must be an http(s) URL', 'clip_url');
+        const cleanTitle = cleanLine(title, 241);
+        if (!cleanTitle || cleanTitle.length > 240 || controlChars(title)) return refusal(400, 'cam.invalid', 'title is 1 to 240 characters of plain text', 'title');
+        if (lat != null && (!Number.isFinite(Number(lat)) || Math.abs(Number(lat)) > 90)) return refusal(400, 'cam.invalid', 'lat is -90 to 90', 'lat');
+        if (lng != null && (!Number.isFinite(Number(lng)) || Math.abs(Number(lng)) > 180)) return refusal(400, 'cam.invalid', 'lng is -180 to 180', 'lng');
+        const row = await db.maybe(`INSERT INTO cam_events
+            (id, camera_id, owner, kind, at, title, detail, person_id, person_name, known, muted, away, priority, still_url, clip_url,
+             clip_before_seconds, clip_after_seconds, place, lat, lng, metadata, notified, created_at)
+            VALUES ($1,$2,$3,$4,$5::timestamptz,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22,$23::timestamptz)
+            RETURNING *`,
+        [s.newId('cev'), cameraId, owner, kind, at, cleanTitle, detail == null ? null : cleanLine(detail, 500), personId, personName == null ? null : cleanLine(personName, 80),
+            Boolean(known), Boolean(muted), Boolean(away), priority, stillUrl, clipUrl, Number(clipBefore), Number(clipAfter),
+            place == null ? null : cleanLine(place, 240), lat == null ? null : Number(lat), lng == null ? null : Number(lng),
+            JSON.stringify(metadata && typeof metadata === 'object' ? metadata : {}), Boolean(notified), clock()]);
+        return { ok: true, event: wireEvent(row) };
+    }
+
+    async function eventsOf({ owner, cameraId = null, limit = 60, kind = null, since = null } = {}) {
+        const args = [owner];
+        let where = 'owner=$1';
+        if (cameraId) { args.push(cameraId); where += ` AND camera_id=$${args.length}`; }
+        if (kind) { args.push(kind); where += ` AND kind=$${args.length}`; }
+        if (since) { args.push(since); where += ` AND at >= $${args.length}::timestamptz`; }
+        args.push(Math.min(200, Math.max(1, Number(limit) || 60)));
+        const rows = await db.many(`SELECT * FROM cam_events WHERE ${where} ORDER BY at DESC, id DESC LIMIT $${args.length}`, args);
+        return rows.map(wireEvent);
+    }
+
+    async function eventById(id, owner) {
+        return wireEvent(await db.maybe('SELECT * FROM cam_events WHERE id=$1 AND owner=$2', [String(id || ''), owner]));
+    }
+
+    async function annotateEvent(id, owner, { personName, personId = null, muted } = {}) {
+        const row = await db.maybe('SELECT * FROM cam_events WHERE id=$1 AND owner=$2', [String(id || ''), owner]);
+        if (!row) return refusal(404, 'cam.not_found', 'No such event.');
+        const sets = [];
+        const args = [row.id];
+        if (personName !== undefined) {
+            const name = cleanLine(personName, 81);
+            if (!name || name.length > 80 || controlChars(personName)) return refusal(400, 'cam.invalid', 'person_name is 1 to 80 characters of plain text', 'person_name');
+            args.push(name); sets.push(`person_name=$${args.length}`);
+        }
+        if (personId !== undefined) {
+            if (personId != null && !/^flp_[0-9A-HJKMNP-TV-Z]{26}$/.test(String(personId))) return refusal(400, 'cam.invalid', 'person_id is a Vision face id', 'person_id');
+            args.push(personId == null ? null : String(personId)); sets.push(`person_id=$${args.length}`);
+        }
+        if (muted !== undefined) { args.push(Boolean(muted)); sets.push(`muted=$${args.length}`); }
+        if (personName !== undefined || personId !== undefined) sets.push('known=true');
+        if (!sets.length) return refusal(400, 'cam.invalid', 'Send person_name, person_id or muted', null);
+        const updated = await db.maybe(`UPDATE cam_events SET ${sets.join(', ')} WHERE id=$1 RETURNING *`, args);
+        return { ok: true, event: wireEvent(updated) };
+    }
+
+    async function shareEvent({ eventId, owner, purpose = 'link', tokenHash, expiresAt }) {
+        if (!SHARE_PURPOSES.includes(purpose)) return refusal(400, 'cam.invalid', `purpose must be one of ${SHARE_PURPOSES.join(', ')}`, 'purpose');
+        const row = await db.maybe('SELECT id FROM cam_events WHERE id=$1 AND owner=$2', [eventId, owner]);
+        if (!row) return refusal(404, 'cam.not_found', 'No such event.');
+        const share = await db.maybe(`INSERT INTO cam_event_shares (id, event_id, owner, purpose, token_hash, expires_at, created_at)
+            VALUES ($1,$2,$3,$4,$5,$6::timestamptz,$7::timestamptz) RETURNING *`,
+        [s.newId('ces'), eventId, owner, purpose, tokenHash, expiresAt, clock()]);
+        return { ok: true, share: wireShare(share) };
+    }
+
+    async function eventByShare(tokenHash) {
+        const row = await db.maybe(`SELECT s.*, e.* FROM cam_event_shares s JOIN cam_events e ON e.id=s.event_id
+            WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at > $2::timestamptz`, [String(tokenHash || ''), clock()]);
+        if (!row) return null;
+        return { event: wireEvent(row), purpose: row.purpose, expires_at: iso(row.expires_at) };
+    }
+
     async function countsFor(subject) {
         const row = await db.maybe(
             `SELECT
@@ -371,16 +554,18 @@ function createStore(s, { config }) {
 
     return {
         wireCamera, wireGrant, wirePhoto, wireStill,
-        cameraById, camerasOf, createCamera, patchCamera, removeCamera,
+        cameraById, camerasOf, createCamera, patchCamera, removeCamera, setFamiliarFaces, presenceOf, setPresence,
         grantCamera, grantsOf, revokeGrant, activeGrant, accessTo, wall,
         createPhoto, photoById, photosOf,
         createStill, stillById, stillsOf,
+        createEvent, eventsOf, eventById, annotateEvent, shareEvent, eventByShare,
         countsFor,
-        SOURCES, STATUSES, FILTERS, STILL_VISIBILITIES, PHOTO_VISIBILITIES, CAPTION_MAX, NAME_MAX, SLOT_RE, SUBJECT_RE, BLOCKED_WORDS,
+        SOURCES, STATUSES, FILTERS, STILL_VISIBILITIES, PHOTO_VISIBILITIES, EVENT_KINDS, PRIORITIES, PRESENCE, SHARE_PURPOSES,
+        CAPTION_MAX, NAME_MAX, SLOT_RE, SUBJECT_RE, BLOCKED_WORDS,
     };
 }
 
 module.exports = {
     createStore, caption, toSubject, wireCamera, wireGrant, wirePhoto, wireStill,
-    SOURCES, STATUSES, FILTERS, STILL_VISIBILITIES, PHOTO_VISIBILITIES, BLOCKED_WORDS, SLOT_RE, SUBJECT_RE,
+    SOURCES, STATUSES, FILTERS, STILL_VISIBILITIES, PHOTO_VISIBILITIES, EVENT_KINDS, PRIORITIES, PRESENCE, SHARE_PURPOSES, BLOCKED_WORDS, SLOT_RE, SUBJECT_RE, wireEvent, wireShare,
 };

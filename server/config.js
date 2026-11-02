@@ -67,11 +67,25 @@ function load(env = process.env) {
         //   OpenVibe.Media  GET /live/:sel/frame.jpg   a near-realtime JPEG of a live slot (public, CORS-open)
         //   OpenVibe.Live   GET /api/streams/:id       a stream and its channel (public; presence is not ownership)
         //   OpenVibe.Pics   POST /api/v1/images        called with the signed-in person's own Network token
+        //   OpenVibe.Vision familiar-face libraries    called with the same person's token (the owner's own library)
         upstreams: {
             media: trim(env.OV_MEDIA_URL || 'https://openvibe.media'),
             live: trim(env.OV_LIVE_URL || 'https://openvibe.live'),
             pics: trim(env.OV_PICS_URL || 'https://openvibe.pics'),
+            vision: trim(env.OV_VISION_URL || 'https://openvibe.vision'),
             timeoutMs: Math.max(500, int(env.CAM_UPSTREAM_TIMEOUT_MS, 8000)),
+        },
+
+        // F1 event timeline. A clip is 10 s before and 20 s after the event; the camera uploads or links it, Cam
+        // stores only the reference. `notify` pushes one Network notification per event unless a name is muted or
+        // the camera's quiet hours are on.
+        timeline: {
+            maxBodyMb: Math.min(24, Math.max(1, int(env.CAM_EVENT_MAX_BODY_MB, 12))),
+            clipBeforeSeconds: Math.min(60, Math.max(0, int(env.CAM_CLIP_BEFORE_SECONDS, 10))),
+            clipAfterSeconds: Math.min(120, Math.max(0, int(env.CAM_CLIP_AFTER_SECONDS, 20))),
+            shareDays: Math.min(30, Math.max(1, int(env.CAM_EVENT_SHARE_DAYS, 7))),
+            notificationService: env.CAM_NOTIFICATION_SERVICE || 'cam',
+            notificationScope: env.CAM_NOTIFICATION_SCOPE || 'network.notifications.push',
         },
 
         // A photo the camera app uploads, and the still Live's cam button takes. Neither is ever stored here:

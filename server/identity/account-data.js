@@ -12,6 +12,10 @@
 const { createAccountData, TOPICS } = require('openvibe-sdk/account-data');
 
 const TABLES = [
+    // F1's timeline and presence are the owner's. Shares and events go before the camera they hang under.
+    { table: 'cam_event_shares', subject: 'owner', file: 'event-shares.json', erase: 'delete' },
+    { table: 'cam_events', subject: 'owner', file: 'events.json', erase: 'delete' },
+    { table: 'cam_presence', subject: 'owner', file: 'presence.json', erase: 'delete' },
     { table: 'cam_cameras', subject: 'owner', file: 'cameras.json', erase: 'delete' },
     { table: 'cam_grants', subject: 'owner', file: 'grants-given.json', erase: 'delete' },
     { table: 'cam_grants', subject: 'viewer_subject', file: 'grants-received.json', erase: 'delete' },

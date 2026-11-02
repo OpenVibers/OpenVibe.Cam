@@ -32,6 +32,7 @@ const { raw } = require('./render/html');
 const accountDataLib = require('./identity/account-data');
 const { createStore: createCamStore } = require('./store');
 const { createUpstreams } = require('./upstreams');
+const { createEventPipeline } = require('./events/pipeline');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -55,6 +56,7 @@ async function createApp(opts = {}) {
 
     const cameras = createCamStore(s, { config });
     const upstreams = createUpstreams({ config, fetchImpl, log });
+    const events = createEventPipeline({ cameras, upstreams, config, now: s.now });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -63,7 +65,7 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Cam cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, cameras, upstreams, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, cameras, upstreams, events, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');

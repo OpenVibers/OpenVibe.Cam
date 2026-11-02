@@ -50,6 +50,7 @@ async function startUpstreams() {
         pics: { status: 201 },
         uploads: [],
         requests: [],
+        vision: { libraries: new Map(), match: null, calls: [], status: 200, seq: 0 },
     };
 
     const srv = await listen(async (req, raw, json, res) => {
@@ -78,6 +79,75 @@ async function startUpstreams() {
             const type = conf.type || 'image/jpeg';
             res.writeHead(conf.status || 200, { 'Content-Type': type, 'Content-Length': bytes.length, 'Cache-Control': 'public, max-age=5' });
             return res.end(bytes);
+        }
+
+        // ── Vision's familiar-face library (F1), as Cam's owner-token proxy sees it ──
+        if (p.startsWith('/api/v1/faces/libraries')) {
+            const auth = String(req.headers.authorization || '');
+            state.vision.calls.push({ method: req.method, path: p, auth, body: raw.length ? (() => { try { return JSON.parse(raw.toString('utf8')); } catch { return null; } })() : null });
+            if (state.vision.status >= 400) return json(state.vision.status, { code: 'faces.test_refused', detail: 'Vision refused this test call' });
+            let body = {};
+            try { body = JSON.parse(raw.toString('utf8') || '{}'); } catch { body = {}; }
+            if (p === '/api/v1/faces/libraries' && req.method === 'POST') {
+                const id = `flb_${String(++state.vision.seq).padStart(26, '0')}`;
+                const library = {
+                    id, camera_ids: body.camera_ids || [], region: body.region || 'unknown',
+                    region_mode: ['US-IL', 'US-TX', 'US-WA', 'EU', 'GB', 'UK'].includes(String(body.region || '').toUpperCase()) || !body.region ? 'strict' : 'open',
+                    threshold: body.threshold == null ? 0.363 : body.threshold,
+                    created_at: new Date().toISOString(), updated_at: new Date().toISOString(), people: [],
+                };
+                state.vision.libraries.set(id, library);
+                return json(201, library);
+            }
+            const libraryPath = p.match(/^\/api\/v1\/faces\/libraries\/([^/]+)$/);
+            if (libraryPath) {
+                const library = state.vision.libraries.get(libraryPath[1]);
+                if (!library) return json(404, { code: 'faces.not_found', detail: 'No such face library.' });
+                if (req.method === 'DELETE') { state.vision.libraries.delete(library.id); return json(200, { deleted: true, id: library.id }); }
+                if (req.method === 'PATCH') {
+                    if (body.region !== undefined) {
+                        library.region = body.region;
+                        library.region_mode = ['US-IL', 'US-TX', 'US-WA', 'EU', 'GB', 'UK'].includes(String(body.region).toUpperCase()) || !body.region ? 'strict' : 'open';
+                    }
+                    if (body.threshold !== undefined) library.threshold = body.threshold;
+                    return json(200, { ...library, people: library.people });
+                }
+                return json(200, { ...library, people: library.people });
+            }
+            const enroll = p.match(/^\/api\/v1\/faces\/libraries\/([^/]+)\/enroll$/);
+            if (enroll && req.method === 'POST') {
+                const library = state.vision.libraries.get(enroll[1]);
+                if (!library) return json(404, { code: 'faces.not_found', detail: 'No such face library.' });
+                const person = {
+                    id: `flp_${String(++state.vision.seq).padStart(26, '0')}`, library_id: library.id, name: String(body.name || ''),
+                    subject: body.subject || null, status: library.region_mode === 'strict' ? 'pending_consent' : 'active',
+                    consent_basis: library.region_mode === 'strict' ? null : null, muted: false,
+                    has_template: library.region_mode !== 'strict', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_matched_at: null,
+                };
+                library.people.push(person);
+                return json(200, { person, consent_request: person.status === 'pending_consent' ? { token: 'req-token', url: 'https://openvibe.vision/people/privacy?face_request=req-token', expires_at: new Date(Date.now() + 86400000).toISOString(), sent: false, text_version: 'face-library-2026-10-28' } : null, enrolled: person.status === 'active' });
+            }
+            const match = p.match(/^\/api\/v1\/faces\/libraries\/([^/]+)\/match$/);
+            if (match && req.method === 'POST') {
+                const library = state.vision.libraries.get(match[1]);
+                if (!library) return json(404, { code: 'faces.not_found', detail: 'No such face library.' });
+                if (state.vision.match) return json(200, { library_id: library.id, ...state.vision.match });
+                return json(200, { library_id: library.id, match: false, label: 'unknown person', name: null, person_id: null, muted: false, score: null, threshold: library.threshold });
+            }
+            const personMatch = p.match(/^\/api\/v1\/faces\/libraries\/([^/]+)\/people(?:\/([^/]+)(\/request)?)?$/);
+            if (personMatch) {
+                const library = state.vision.libraries.get(personMatch[1]);
+                if (!library) return json(404, { code: 'faces.not_found', detail: 'No such face library.' });
+                if (!personMatch[2]) return json(200, { library: { ...library, people: library.people }, people: library.people });
+                const person = library.people.find((x) => x.id === personMatch[2]);
+                if (!person) return json(404, { code: 'faces.not_found', detail: 'No such named face.' });
+                if (personMatch[3]) return json(200, { token: 'req-token', url: 'https://openvibe.vision/people/privacy?face_request=req-token', expires_at: new Date(Date.now() + 86400000).toISOString(), sent: false, text_version: 'face-library-2026-10-28' });
+                if (req.method === 'DELETE') { library.people = library.people.filter((x) => x.id !== person.id); return json(200, { deleted: true, id: person.id, name: person.name, templates: 1, crops: 1, requests: 0 }); }
+                if (req.method === 'PATCH') { if (body.name !== undefined) person.name = body.name; if (body.muted !== undefined) person.muted = Boolean(body.muted); return json(200, person); }
+                return json(200, person);
+            }
+            if (/^\/api\/v1\/faces\/libraries\/[^/]+\/consent-check$/.test(p) && req.method === 'POST') return json(200, { checked: 0, activated: [] });
+            return json(404, { code: 'faces.not_found', detail: 'No such face route.' });
         }
 
         if (p === '/api/v1/images' && req.method === 'POST') {
@@ -111,6 +181,10 @@ async function startUpstreams() {
         setFrame(slot, conf) { state.frames[slot] = conf; },
         setPics(status) { state.pics.status = status; },
         uploads() { return state.uploads; },
+        setVisionMatch(match) { state.vision.match = match; },
+        setVisionStatus(status) { state.vision.status = status; },
+        visionCalls() { return state.vision.calls; },
+        visionLibrary(id) { return state.vision.libraries.get(id); },
     };
 }
 
