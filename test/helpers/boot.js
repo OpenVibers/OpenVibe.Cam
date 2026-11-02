@@ -32,7 +32,7 @@ async function boot(opts = {}) {
         OV_OAUTH_CLIENT_ID: 'cam', OV_OAUTH_CLIENT_SECRET: 'cam-secret', COOKIE_SECURE: 'false',
         CAM_DRILL: '1',
         CAM_EVENTS_URL: network.url,
-        OV_MEDIA_URL: upstreams.url, OV_LIVE_URL: upstreams.url, OV_PICS_URL: upstreams.url,
+        OV_MEDIA_URL: upstreams.url, OV_LIVE_URL: upstreams.url, OV_PICS_URL: upstreams.url, OV_VISION_URL: upstreams.url,
         ...(opts.env || {}),
     };
     for (const [k, v] of Object.entries(opts.env || {})) if (v === null) delete env[k];

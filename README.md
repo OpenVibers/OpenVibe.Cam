@@ -15,7 +15,7 @@ private to its owner, and a viewer sees it only while the grant the owner gave i
 - **The camera app.** A browser preview with a timer, a 3-shot burst, a grid and on-device colour, light and
   softness. The filter runs on the canvas in the person's browser; the server never applies an effect. The picture
   is posted to Cam, which forwards it to OpenVibe.Pics with the person's own Network token. There is no server-side
-  image analysis. Cam never looks anyone up: your cameras can learn the faces of people you name, and nobody else's face is ever looked up.
+  image analysis and no face recognition.
 - **My cameras.** Pair an old phone, a browser, a Pi or an IP camera you own. If a Live stream id is given, Cam
   reads it from OpenVibe.Live's public API and refuses a stream on somebody else's channel; the slot defaults to the
   stream's managed slot. Its wall is private: `/w/<id>` answers its owner and an active grantee, and 404 to
@@ -73,7 +73,7 @@ Environment variable names are in [.env.example](.env.example); no value is comm
 - **PostgreSQL** — `DATABASE_URL` (through PgBouncer) and `DATABASE_DIRECT_URL` (migrations); embedded PGlite in
   `CAM_PGLITE_DIR` for development.
 - **Valkey** — optional `VALKEY_URL`, `VALKEY_PREFIX` (readiness lists it; the limits in v1 count in-process).
-- **Packages** — `openvibe-contracts` v0.234.0, `openvibe-sdk` v0.74.0, `openvibe-shared` v4.55.0, the same tags
+- **Packages** — `openvibe-contracts` v0.234.0, `openvibe-sdk` v0.81.0, `openvibe-shared` v4.93.2, the same tags
   OpenVibe.Meme pins.
 
 ## API
@@ -97,6 +97,22 @@ per-actor minute/hour limits (`CAM_LIMITS_MINUTE`, `CAM_LIMITS_HOUR`).
 | `POST /stills` | a person; `{ slot, caption?, stream_id?, w?, visibility? }`; Media's frame → Pics → a still and the chat line |
 | `GET /stills` | your stills |
 | `GET /stills/:id` | an unlisted still by its link; a private one only for its owner |
+| `GET/PUT/DELETE /cameras/:id/familiar-faces` | the owner: turn Familiar faces on/off, set its region and quiet hours; on creates the owner's Vision library |
+| `POST /cameras/:id/familiar-faces/enroll` · `/match` · `GET /people` | the owner, proxied to Vision with the owner's own token; Cam keeps no template or crop |
+| `PATCH/DELETE /cameras/:id/familiar-faces/people/:personId` · `POST …/request` · `POST …/consent-check` | the owner: mute/rename/delete a name, or send/re-check its consent request |
+| `POST /cameras/:id/events` | the owner or camera: `{ kind, at?, still_url?, clip_url?, face_image?, face_image_url?, place?, lat?, lng?, linger_seconds? }`; one timeline event |
+| `GET /cameras/:id/events` · `GET /events` | the owner's timeline, newest first (`limit`, `kind`, `since`) |
+| `GET/PATCH /events/:id` · `POST /events/:id/share` · `POST /events/:id/police` · `GET /events/:id/export` | read, mark "this is X", a private link, or the police download (time, place, still and clip references) |
+| `GET /events/shared/:token` | anyone with the private token; the event, never the owner's account |
+| `GET/PUT /presence` | the owner's own home/away, from the browser, phone or Node |
+
+### Familiar faces and the timeline (F1)
+
+A camera's Familiar faces setting is `familiar_faces`; when it is on, Cam creates an OpenVibe.Vision library for that camera and stores only its `vision_library_id`, `region` and `region_mode`. The owner's own Network token is forwarded to Vision for every library call, so Vision decides ownership, encryption and consent; Cam holds no template and no crop. Deleting the camera deletes its Vision library first.
+
+An event is one detection: `person`, `package`, `vehicle`, `animal`, `loiter` or `door`. A person event may carry a face crop; only then does Cam ask Vision to match inside that camera's library. The event keeps a still and a clip reference plus `clip.before_seconds` (default 10) and `clip.after_seconds` (default 20), the owner's `away` state at that moment, and `priority: "high"` for an unknown person or a door while away. Detection without identity — package, vehicle, animal, loitering, door — never needs a face.
+
+One Network notification is pushed per event unless the matched name is muted or the camera's `quiet_hours` cover the event time; the event is still stored. `POST /events/:id/share` returns a private link once (only its sha256 is stored), and `GET /events/:id/export` returns an `attachment` file with the time and place for "Send to police". `OV_VISION_URL`, `CAM_CLIP_BEFORE_SECONDS`, `CAM_CLIP_AFTER_SECONDS`, `CAM_EVENT_MAX_BODY_MB`, `CAM_EVENT_SHARE_DAYS` and `CAM_NOTIFICATION_SCOPE` configure the path.
 
 Validation refusals are `400 { code: "cam.invalid", message }`; a blocked caption is `400 { code:
 "cam.blocked_words" }`. Other codes: `cam.sign_in_required`, `cam.person_required`, `cam.cross_site`,
@@ -186,6 +202,6 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.237.0
-- openvibe-sdk: v0.77.0
-- openvibe-shared: v4.55.0
+- openvibe-sdk: v0.81.0
+- openvibe-shared: v4.93.2
 <!-- versions:end -->

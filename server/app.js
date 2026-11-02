@@ -32,6 +32,7 @@ const { raw } = require('./render/html');
 const accountDataLib = require('./identity/account-data');
 const { createStore: createCamStore } = require('./store');
 const { createUpstreams } = require('./upstreams');
+const { createEventPipeline } = require('./events/pipeline');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -55,6 +56,7 @@ async function createApp(opts = {}) {
 
     const cameras = createCamStore(s, { config });
     const upstreams = createUpstreams({ config, fetchImpl, log });
+    const events = createEventPipeline({ cameras, upstreams, config, now: s.now });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -63,7 +65,7 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Cam cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, cameras, upstreams, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, cameras, upstreams, events, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -148,6 +150,20 @@ async function createApp(opts = {}) {
 
     // ── Pages ───────────────────────────────────────────────
     app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.CAM_RATE_LIMIT_PER_MIN) || 300, standardHeaders: true, legacyHeaders: false }));
+    // The agent layer (openvibe-shared/agent-layer): /.well-known/agent.json and the Markdown twins of the
+    // indexable public pages (server/agent-pages.js). The pages keep their own routes — a signed-in person's
+    // photos, an owner's camera and a private wall are theirs — so only the manifest and twin requests
+    // reach this mount; the pages advertise the twin themselves (render/layout.js).
+    const agentLayer = express();
+    require('openvibe-shared/agent-layer').mount(agentLayer, {
+        descriptor: require('./agent-descriptor'),
+        render: require('./agent-pages').createAgentPages({ config: ctx.config }).renderPublicPage,
+    });
+    app.use((req, res, next) => {
+        const twin = req.path.endsWith('.md') || (req.query && req.query.format === 'markdown') || String(req.headers.accept || '').includes('text/markdown');
+        if (req.path !== '/.well-known/agent.json' && !twin) return next();
+        return agentLayer(req, res, next);
+    });
     app.use(createPageRoutes(ctx));
     app.use((req, res) => send(res, 404, {
         viewer: req.viewer, config, path: req.originalUrl, title: 'Not found',
