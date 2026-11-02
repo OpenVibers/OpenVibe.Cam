@@ -34,7 +34,7 @@ must come from `openvibe.cam` (Sec-Fetch-Site same-origin, or an Origin equal to
 pair a camera, grant a viewer, revoke a grant or upload a photo. The `/internal/events` account route is loopback
 only and refuses a proxied request; nginx answers 404 for `/internal` and `/metrics`.
 
-There is no face recognition, no nudity or violence classifier, no AI call and no recording in v1. The camera is
+There is no stranger search and no nudity or violence classifier, no AI call and no recording in v1. The camera is
 same-origin only (`Permissions-Policy: camera=(self), microphone=()`), and the filter runs in the browser.
 
 ## Supported versions
