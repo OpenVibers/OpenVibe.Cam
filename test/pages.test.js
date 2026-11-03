@@ -146,6 +146,11 @@ function jsonLd(html) {
             const llms = await t.get('/llms.txt');
             assert.strictEqual(llms.status, 200);
             assert.ok(llms.text.includes('OpenVibe.Cam'));
+            // AGT-5: own pages at their Markdown twins, files as they are, Optional last.
+            assert.match(llms.text, /\(https?:\/\/[^)]*\/index\.md\)/, 'the home links its twin');
+            assert.match(llms.text, /\(https?:\/\/[^)]*\/developers\.md\)/);
+            assert.match(llms.text, /\(https?:\/\/[^)]*\/sitemap\.xml\)/);
+            assert.ok(llms.text.includes('\n## Optional\n') && llms.text.lastIndexOf('\n## ') === llms.text.indexOf('\n## Optional\n'), 'Optional is last');
         });
     } finally {
         await t.close();

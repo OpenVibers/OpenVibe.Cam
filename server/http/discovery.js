@@ -57,6 +57,9 @@ function createDiscoveryRoutes(ctx) {
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: 'OpenVibe.Cam is the camera app: photos with on-device filters saved to OpenVibe.Pics, private cameras with revocable viewer grants, and a still from a Live stream for its chat. A camera is private; there is no public directory in v1.',
+            // AGT-5: own pages link their Markdown twins (openvibe-shared 4.108.0); ## Optional is what an agent may skip.
+            markdown: true,
+            base: site,
             details: 'GET /api/v1/cameras lists a signed-in person\'s cameras; POST /api/v1/cameras pairs one; POST /api/v1/cameras/:id/grants names a viewer and a number of days; DELETE /api/v1/cameras/:id/grants/:grantId revokes it at once. POST /api/v1/stills takes a frame from OpenVibe.Media\'s public GET /live/:sel/frame.jpg and saves it to OpenVibe.Pics as the person. No route is public except GET /api/v1/stills/:id for an unlisted still.',
             sections: [
                 { title: 'Start here', links: [
@@ -64,17 +67,15 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'The camera app', url: abs('/app') },
                     { title: 'The API', url: abs('/developers') },
                 ] },
-                { title: 'Machine-readable', links: [
-                    { title: 'Sitemap', url: abs('/sitemap.xml') },
-                    { title: 'Full text for language models', url: abs('/llms-full.txt') },
-                    { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                ] },
-                { title: 'Elsewhere', links: [
-                    { title: 'OpenVibe.Live', url: 'https://openvibe.live', note: 'the stream the cam button takes a still from' },
-                    { title: 'OpenVibe.Media', url: 'https://openvibe.media', note: 'the live frame endpoint' },
-                    { title: 'OpenVibe.Pics', url: 'https://openvibe.pics', note: 'where a photo and a still are stored' },
-                    { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts and usernames' },
-                ] },
+            ],
+            optional: [
+                { title: 'Sitemap', url: abs('/sitemap.xml') },
+                { title: 'Full text for language models', url: abs('/llms-full.txt') },
+                { title: 'Release metadata (JSON)', url: abs('/release.json') },
+                { title: 'OpenVibe.Live', url: 'https://openvibe.live', note: 'the stream the cam button takes a still from' },
+                { title: 'OpenVibe.Media', url: 'https://openvibe.media', note: 'the live frame endpoint' },
+                { title: 'OpenVibe.Pics', url: 'https://openvibe.pics', note: 'where a photo and a still are stored' },
+                { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts and usernames' },
             ],
         }));
     });
