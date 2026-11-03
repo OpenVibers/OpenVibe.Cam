@@ -11,6 +11,7 @@ module.exports = {
     site: 'openvibe.cam',
     api: '/api/v1',
     docs: '/developers',
+    openapi: '/openapi.json',
     policy: {
         auth: ['none', 'Network OIDC'],
     },
