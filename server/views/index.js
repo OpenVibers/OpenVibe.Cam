@@ -201,6 +201,11 @@ function app({ signedIn = false, photos = [] } = {}) {
 <div class="cm-flash" data-cm-flash aria-hidden="true"></div>
 <div class="cm-count" data-cm-count aria-hidden="true"></div>
 <div class="cm-mode-say" data-cm-mode-say aria-hidden="true"></div>
+<div class="cm-live" data-cm-live hidden>
+<img class="cm-live-frame" data-cm-live-frame alt="" hidden>
+<p class="cm-live-empty" data-cm-live-empty>Looking for who is live…</p>
+<div class="cm-live-picks" role="radiogroup" aria-label="Who is live" data-cm-live-picks></div>
+</div>
 <div class="cm-off" data-cm-off>
 <span class="ov-icon" data-icon="cam" data-size="64" aria-hidden="true"></span>
 <h1 class="cm-off-title">Camera</h1>
@@ -218,7 +223,7 @@ ${signedIn ? '' : '<p class="cm-off-note"><a href="/auth/login?next=%2Fapp">Sign
 <div class="cm-bar">
 <a class="cm-thumb" data-cm-thumb href="${signedIn ? '#cm-gallery' : '/auth/login?next=%2Fapp'}" aria-label="Your photos">${thumb}</a>
 <div class="cm-shoot-wrap">
-<div class="cm-modes" role="radiogroup" aria-label="Mode"><button class="cm-mode" type="button" role="radio" aria-checked="true" data-cm-mode="photo">Photo</button><button class="cm-mode" type="button" role="radio" aria-checked="false" data-cm-mode="burst">Burst</button></div>
+<div class="cm-modes" role="radiogroup" aria-label="Mode"><button class="cm-mode" type="button" role="radio" aria-checked="true" data-cm-mode="photo">Photo</button><button class="cm-mode" type="button" role="radio" aria-checked="false" data-cm-mode="burst">Burst</button><button class="cm-mode" type="button" role="radio" aria-checked="false" data-cm-mode="live">Live</button></div>
 <button class="cm-shutter" type="button" data-cm-shoot aria-label="Take the photo"><span></span></button>
 </div>
 <button class="cm-round cm-flip" type="button" data-cm-flip aria-label="Switch camera">${ICONS.flip}</button>

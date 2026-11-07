@@ -36,6 +36,29 @@ function createUpstreams({ config, fetchImpl = globalThis.fetch, log = console }
         }
     }
 
+    /**
+     * Who is live on OpenVibe.Live now, from its public list: each stream's Media slot (its slot slug, else its id),
+     * the stream id, the channel's name and the title. At most 24.
+     */
+    async function liveNow() {
+        const res = await call(`${base(live)}/api/streams`);
+        if (!res.ok) throw new UpstreamError('cam.live.unavailable', `OpenVibe.Live answered ${res.status}`);
+        const data = await res.json().catch(() => null);
+        const rows = data && Array.isArray(data.streams) ? data.streams : [];
+        const out = [];
+        for (const s of rows) {
+            if (!s || s.is_live === false) continue;
+            const slot = s.managed_stream_slug ? String(s.managed_stream_slug) : (s.managed_stream_id != null ? String(s.managed_stream_id) : '');
+            const id = Number(s.id);
+            if (!slot || !Number.isInteger(id) || id <= 0) continue;
+            const ch = s.channel && typeof s.channel === 'object' ? s.channel : {};
+            const username = String(ch.username || s.username || '').slice(0, 64);
+            out.push({ stream_id: id, slot, username, name: String(ch.display_name || username || slot).slice(0, 80), title: String(s.title || '').slice(0, 140) });
+            if (out.length >= 24) break;
+        }
+        return out;
+    }
+
     /** The public Live stream row, or null when it does not exist. */
     async function liveStream(id) {
         const n = Number(id);
@@ -204,7 +227,7 @@ function createUpstreams({ config, fetchImpl = globalThis.fetch, log = console }
         return { sent: !data.skipped, notification_id: data.notification ? data.notification.id : null };
     }
 
-    return { liveStream, liveFrame, picsUpload, resolveUsername, vision: visionApi, pushNotification, UpstreamError, base };
+    return { liveStream, liveNow, liveFrame, picsUpload, resolveUsername, vision: visionApi, pushNotification, UpstreamError, base };
 }
 
 module.exports = { createUpstreams, UpstreamError, USERNAME_RE };

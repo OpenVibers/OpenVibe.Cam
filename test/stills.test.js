@@ -106,6 +106,13 @@ const { boot, check, done } = require('./helpers/boot');
             assert.strictEqual(long.status, 400);
         });
 
+        await check('who is live: each live stream\'s slot, id and name, for anyone; cached briefly', async () => {
+            const r = await t.get('/api/v1/live');
+            assert.strictEqual(r.status, 200);
+            assert.strictEqual(r.headers.get('cache-control'), 'public, max-age=15');
+            assert.deepStrictEqual(r.json().streams, [{ stream_id: 1234, slot: 'whip', username: 'alice', name: 'alice', title: 'Alice live' }]);
+        });
+
         await check('your stills are listed; another person\'s are not', async () => {
             const mine = await t.get('/api/v1/stills', { as: alice });
             assert.strictEqual(mine.status, 200);
