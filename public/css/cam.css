@@ -294,3 +294,12 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .cm-doc-table code { overflow-wrap: anywhere; }
 .cm-embed-demo { max-width: 660px; margin: 18px 0 8px; }
 .cm-embed-demo .cm-photos { margin-top: 10px; }
+
+/* The camera in your own app (home, 11-07): the live element above the two lines that put it anywhere. */
+.cm-build { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; width: min(100%, 440px); margin: 0 auto; }
+.cm-build-cam { width: 100%; min-width: 0; --ov-camera-radius: 22px; }
+.cm-build-code { position: relative; margin: 0; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--border, #1f2d47); background: var(--bg-primary, #0b0f1a); }
+.cm-build-code figcaption { margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
+.cm-build-code pre { margin: 0; padding-right: 64px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+.cm-build-copy { position: absolute; top: 8px; right: 8px; min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); background: var(--bg-secondary, #101828); color: var(--text-primary, #e6edf7); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.cm-build-copy:hover { border-color: var(--accent, #00c7d2); }
