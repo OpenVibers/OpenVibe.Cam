@@ -200,6 +200,7 @@ function app({ signedIn = false, photos = [] } = {}) {
 <div class="cm-grid-overlay" data-cm-grid hidden aria-hidden="true"></div>
 <div class="cm-flash" data-cm-flash aria-hidden="true"></div>
 <div class="cm-count" data-cm-count aria-hidden="true"></div>
+<div class="cm-mode-say" data-cm-mode-say aria-hidden="true"></div>
 <div class="cm-off" data-cm-off>
 <span class="ov-icon" data-icon="cam" data-size="64" aria-hidden="true"></span>
 <h1 class="cm-off-title">Camera</h1>
