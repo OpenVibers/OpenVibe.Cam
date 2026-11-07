@@ -173,6 +173,7 @@
         }
 
         function shoot() {
+            if (mode === 'live') { takeStill(); return; }
             // The shutter turns the camera on when it is off, like opening a phone camera.
             if (!stream) { start(); return; }
             var n = parseInt(timerSel.value, 10) || 0;
@@ -202,8 +203,100 @@
             mode = b.dataset.cmMode;
             root.dataset.mode = mode;
             modeBtns.forEach(function (x) { x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
-            shootBtn.setAttribute('aria-label', mode === 'burst' ? 'Take three photos' : 'Take the photo');
+            shootBtn.setAttribute('aria-label', mode === 'burst' ? 'Take three photos' : mode === 'live' ? 'Save a still of this stream' : 'Take the photo');
+            if (mode === 'live') enterLive(); else leaveLive();
         }); });
+
+        // Live (11-07, the owner's "stream still"): pick who is live on OpenVibe.Live, see their picture, and the shutter
+        // saves a still of it to your Pics, as the cam button on a stream does (POST /api/v1/stills). The camera itself
+        // is not needed. The picture is Media's frame, fetched again every five seconds while it is on screen.
+        var liveEl = root.querySelector('[data-cm-live]');
+        var liveFrame = root.querySelector('[data-cm-live-frame]');
+        var liveEmpty = root.querySelector('[data-cm-live-empty]');
+        var livePicks = root.querySelector('[data-cm-live-picks]');
+        var liveSel = null;
+        var liveTimer = null;
+        var MEDIA = 'https://openvibe.media';
+        function liveSay(text, link) {
+            if (!liveEmpty) return;
+            liveEmpty.textContent = text;
+            if (link) { var a = document.createElement('a'); a.href = link.href; a.textContent = link.text; liveEmpty.appendChild(document.createElement('br')); liveEmpty.appendChild(a); }
+            liveEmpty.hidden = false;
+        }
+        function refreshFrame() {
+            if (!liveSel || !liveFrame || document.hidden) return;
+            liveFrame.src = MEDIA + '/live/' + encodeURIComponent(liveSel.slot) + '/frame.jpg?w=960&t=' + Date.now();
+        }
+        function pickLive(item) {
+            liveSel = item;
+            Array.prototype.forEach.call(livePicks.children, function (b) { b.setAttribute('aria-checked', b.dataset.slot === item.slot ? 'true' : 'false'); });
+            if (liveFrame) liveFrame.alt = item.name + (item.title ? ': ' + item.title : '');
+            liveSay('Loading ' + item.name + '…');
+            refreshFrame();
+            clearInterval(liveTimer);
+            liveTimer = setInterval(refreshFrame, 5000);
+        }
+        function enterLive() {
+            if (!liveEl) return;
+            liveEl.hidden = false;
+            say('Pick who is live, then press the shutter to save a still to your Pics.');
+            liveSay('Looking for who is live…');
+            fetch('/api/v1/live', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (data) {
+                    if (mode !== 'live') return;
+                    var list = data && Array.isArray(data.streams) ? data.streams : null;
+                    livePicks.textContent = '';
+                    if (!list) { liveSay('OpenVibe.Live did not answer. Try again in a moment.'); return; }
+                    if (!list.length) { if (liveFrame) liveFrame.hidden = true; liveSay('Nobody is live on OpenVibe.Live right now.', { href: 'https://openvibe.live/', text: 'Go live yourself' }); return; }
+                    list.forEach(function (item) {
+                        var b = document.createElement('button');
+                        b.type = 'button'; b.className = 'cm-live-pick'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', 'false');
+                        b.dataset.slot = item.slot; b.textContent = item.name;
+                        if (item.title) b.title = item.title;
+                        b.addEventListener('click', function () { pickLive(item); });
+                        livePicks.appendChild(b);
+                    });
+                    var keep = liveSel && list.filter(function (x) { return x.slot === liveSel.slot; })[0];
+                    pickLive(keep || list[0]);
+                })
+                .catch(function () { if (mode === 'live') liveSay('OpenVibe.Live did not answer. Try again in a moment.'); });
+        }
+        function leaveLive() {
+            clearInterval(liveTimer); liveTimer = null;
+            if (liveEl && !liveEl.hidden) say(stream ? 'The camera is on. Nothing is recorded.' : 'The camera is off.');
+            if (liveEl) liveEl.hidden = true;
+            if (liveFrame) { liveFrame.removeAttribute('src'); liveFrame.hidden = true; }
+        }
+        if (liveFrame) {
+            liveFrame.addEventListener('load', function () { liveFrame.hidden = false; if (liveEmpty) liveEmpty.hidden = true; });
+            liveFrame.addEventListener('error', function () { liveFrame.hidden = true; if (liveSel) liveSay(liveSel.name + ' has no picture right now.'); });
+        }
+        document.addEventListener('visibilitychange', function () { if (!document.hidden && mode === 'live') refreshFrame(); });
+        function takeStill() {
+            if (!liveSel) { say('Pick who is live first.'); return; }
+            if (busy) return;
+            busy = true;
+            flash();
+            say('Saving a still of ' + liveSel.name + '…');
+            var body = { slot: liveSel.slot, stream_id: liveSel.stream_id, w: 1280, caption: captionEl && captionEl.value ? captionEl.value : '' };
+            fetch('/api/v1/stills', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) })
+                .then(function (res) {
+                    return res.json().catch(function () { return {}; }).then(function (out) {
+                        if (res.status === 401) { say('Sign in to save a still to your Pics.'); return; }
+                        if (!res.ok) { say((out && out.detail) || 'The still was not saved.'); return; }
+                        addToGallery(out.still);
+                        say('Saved a still of ' + liveSel.name + ' to your Pics. ');
+                        if (statusEl && out.share && out.share.url) {
+                            var c = document.createElement('button');
+                            c.type = 'button'; c.className = 'cm-copy'; c.setAttribute('data-copy', out.share.url); c.textContent = 'Copy link';
+                            statusEl.appendChild(c);
+                        }
+                    });
+                })
+                .catch(function () { say('The still was not saved: the network did not answer.'); })
+                .then(function () { busy = false; });
+        }
         // Swipe the viewfinder sideways to change mode, as a phone camera does (11-07). Not from the filter strip or the
         // top controls, which scroll or press on their own; the mode's name shows on the picture for a moment.
         var stageEl = root.querySelector('.cm-stage');
@@ -226,7 +319,7 @@
         if (stageEl && modeBtns.length > 1) {
             var swipe = null;
             stageEl.addEventListener('pointerdown', function (e) {
-                swipe = (root.dataset.state === 'off' || (e.target.closest && e.target.closest('.cm-filters, .cm-top, .cm-off'))) ? null : { x: e.clientX, y: e.clientY, t: Date.now() };
+                swipe = (e.target.closest && e.target.closest('.cm-filters, .cm-top, .cm-off, .cm-live-picks')) ? null : { x: e.clientX, y: e.clientY, t: Date.now() };
             });
             stageEl.addEventListener('pointerup', function (e) {
                 if (!swipe) return;
@@ -250,15 +343,16 @@
             upload(f, f.type, 'none');
             fileInput.value = '';
         });
-        stopCamera = function () { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; };
+        stopCamera = function () { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; leaveLive(); };
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
     document.addEventListener('ov:boost:load', wire);
 })();
 
-// The home's Copy button beside the <ov-camera> snippet (11-07).
+// The home's Copy button beside the <ov-camera> snippet, and a saved still's Copy link (11-07).
 document.addEventListener('click', function (e) {
-    var b = e.target && e.target.closest ? e.target.closest('.cm-build-copy[data-copy]') : null;
+    var b = e.target && e.target.closest ? e.target.closest('.cm-build-copy[data-copy], .cm-copy[data-copy]') : null;
     if (!b || !navigator.clipboard) return;
-    navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); }, function () {});
+    var label = b.dataset.label || (b.dataset.label = b.textContent);
+    navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = label; }, 1500); }, function () {});
 });

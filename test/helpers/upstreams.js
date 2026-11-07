@@ -4,6 +4,7 @@
  * In-process stand-ins for OpenVibe.Media, OpenVibe.Live and OpenVibe.Pics on one HTTP server. Boot points
  * OV_MEDIA_URL, OV_LIVE_URL and OV_PICS_URL at it.
  *
+ *   GET  /api/streams           who is live now (the camera app's Live mode)
  *   GET  /api/streams/:id       a stream with its channel (ownership check)
  *   GET  /live/:sel/frame.jpg   a JPEG frame; state.frames[sel] = { status: 404 } makes it offline
  *   POST /api/v1/images         Pics upload; records the person's token and returns a slug and links
@@ -57,6 +58,9 @@ async function startUpstreams() {
         const url = new URL(req.url, 'http://x');
         const p = url.pathname;
         state.requests.push({ method: req.method, path: p, query: Object.fromEntries(url.searchParams), headers: { ...req.headers }, bytes: raw.length });
+
+        // Live's public list: who is live now (the camera app's Live mode).
+        if (p === '/api/streams' && req.method === 'GET') return json(200, { streams: Object.values(state.streams).filter((s) => s.is_live), agents: [] });
 
         const stream = p.match(/^\/api\/streams\/(\d+)$/);
         if (stream) {

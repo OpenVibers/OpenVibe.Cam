@@ -226,6 +226,26 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
     opacity: 0; transform: translate(-50%, -6px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
 .cm-mode-say.is-on { opacity: 1; transform: translate(-50%, 0); }
 .cm-mode-say:empty { display: none; }
+/* Live: who is live on OpenVibe.Live, their picture on the stage and a picker where the filters were. The camera is not
+   needed, so its off card, the filters and the grid and timer step aside; the shutter turns red. */
+.cm-live { position: absolute; inset: 0; z-index: 2; background: #04060b; }
+.cm-live[hidden] { display: none; }
+.cm-live-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.cm-live-frame[hidden] { display: none; }
+.cm-live-empty { position: absolute; inset: 0; margin: 0; display: grid; place-content: center; gap: 10px; padding: 24px 24px 80px; text-align: center; color: rgba(232,236,243,.8); font-weight: 650; line-height: 1.5; }
+.cm-live-empty[hidden] { display: none; }
+.cm-live-empty a { justify-self: center; display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; background: var(--room-accent); color: var(--room-on, #fff); text-decoration: none; font-weight: 800; }
+.cm-live-empty br { display: none; }
+.cm-live-picks { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; gap: 8px; padding: 4px 14px; overflow-x: auto; scrollbar-width: none; justify-content: safe center; }
+.cm-live-picks::-webkit-scrollbar { display: none; }
+.cm-live-pick { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; color: #fff; background: rgba(4,6,11,.55);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
+.cm-live-pick::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+.cm-live-pick[aria-checked="true"] { background: color-mix(in srgb, var(--room-accent) 80%, rgba(4,6,11,.4)); }
+.cm-camera[data-mode="live"] .cm-off, .cm-camera[data-mode="live"] .cm-filters, .cm-camera[data-mode="live"] .cm-top { display: none; }
+.cm-camera[data-mode="live"] .cm-shutter span { background: #ef4444; }
+.cm-camera[data-mode="live"] .cm-flip { visibility: hidden; }
+.cm-status .cm-copy { margin-left: 8px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border, #1f2d47); border-radius: 999px; background: var(--bg-card, #0f1729); color: inherit; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .cm-count.is-tick { animation: cm-tick .9s cubic-bezier(.2,1.3,.4,1); }
 @keyframes cm-tick { 0% { transform: scale(1.6); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% { opacity: .2; } }
 /* Off: a calm card on the dark stage, one big button. */

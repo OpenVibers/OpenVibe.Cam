@@ -15,6 +15,7 @@
  *   GET    /cameras/:id/grants              owner
  *   POST   /cameras/:id/grants              owner: @username or subject, and days
  *   DELETE /cameras/:id/grants/:grantId     owner: revoke at once
+ *   GET    /live                            who is live on OpenVibe.Live now (the camera app's Live mode)
  *   POST   /stills                          the Live cam button: fetch Media's frame, save to Pics
  *   GET    /stills                          your stills
  *   GET    /stills/:id                      one still (unlisted: the link; private: its owner)
@@ -514,6 +515,16 @@ function createApi(ctx) {
         const photo = await cameras.photoById(String(req.params.id || ''));
         if (!photo || photo.subject !== req.principal.subject) return problem(res, 404, 'cam.not_found', 'No such photo.');
         return res.json(photo);
+    });
+
+    // ── Who is live: the camera app's Live mode picks a stream from this ─────────────────────────
+    let liveCache = { at: 0, streams: null };
+    r.get('/live', async (req, res) => {
+        if (!liveCache.streams || Date.now() - liveCache.at > 15000) {
+            try { liveCache = { at: Date.now(), streams: await upstreams.liveNow() }; } catch (err) { return upstreamProblem(res, err); }
+        }
+        res.set('Cache-Control', 'public, max-age=15');
+        return res.json({ count: liveCache.streams.length, streams: liveCache.streams });
     });
 
     // ── Stills: the Live cam button ─────────────────────────
