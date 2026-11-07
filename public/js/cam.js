@@ -204,6 +204,38 @@
             modeBtns.forEach(function (x) { x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
             shootBtn.setAttribute('aria-label', mode === 'burst' ? 'Take three photos' : 'Take the photo');
         }); });
+        // Swipe the viewfinder sideways to change mode, as a phone camera does (11-07). Not from the filter strip or the
+        // top controls, which scroll or press on their own; the mode's name shows on the picture for a moment.
+        var stageEl = root.querySelector('.cm-stage');
+        var modeSay = root.querySelector('[data-cm-mode-say]');
+        var modeSayTimer = null;
+        function stepMode(step) {
+            var at = -1;
+            modeBtns.forEach(function (x, i) { if (x.getAttribute('aria-checked') === 'true') at = i; });
+            var next = modeBtns[at + step];
+            if (!next) return;
+            next.click();
+            if (!modeSay) return;
+            modeSay.textContent = next.textContent;
+            modeSay.classList.remove('is-on');
+            void modeSay.offsetWidth;
+            modeSay.classList.add('is-on');
+            clearTimeout(modeSayTimer);
+            modeSayTimer = setTimeout(function () { modeSay.classList.remove('is-on'); }, 900);
+        }
+        if (stageEl && modeBtns.length > 1) {
+            var swipe = null;
+            stageEl.addEventListener('pointerdown', function (e) {
+                swipe = (root.dataset.state === 'off' || (e.target.closest && e.target.closest('.cm-filters, .cm-top, .cm-off'))) ? null : { x: e.clientX, y: e.clientY, t: Date.now() };
+            });
+            stageEl.addEventListener('pointerup', function (e) {
+                if (!swipe) return;
+                var dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, quick = Date.now() - swipe.t < 700;
+                swipe = null;
+                if (quick && Math.abs(dx) > 50 && Math.abs(dy) < Math.abs(dx) * 0.6) stepMode(dx < 0 ? 1 : -1);
+            });
+            stageEl.addEventListener('pointercancel', function () { swipe = null; });
+        }
         burstBtn.addEventListener('click', burst);
         if (gridBtn) gridBtn.addEventListener('click', function () {
             if (!gridEl) return;

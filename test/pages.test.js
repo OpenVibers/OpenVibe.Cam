@@ -46,7 +46,7 @@ function jsonLd(html) {
             const r = await t.get('/app');
             assert.strictEqual(r.status, 200);
             assert.strictEqual(r.headers.get('cache-control'), 'public, max-age=60');
-            for (const marker of ['id="cm-app"', 'id="cm-camera"', 'id="cm-gallery"', 'data-cm-preview', 'data-cm-shoot', 'data-cm-timer', 'data-cm-burst', 'data-cm-filter', 'data-cm-file', 'data-cm-grid']) assert.ok(r.text.includes(marker), marker);
+            for (const marker of ['id="cm-app"', 'id="cm-camera"', 'id="cm-gallery"', 'data-cm-preview', 'data-cm-shoot', 'data-cm-timer', 'data-cm-burst', 'data-cm-filter', 'data-cm-file', 'data-cm-grid', 'data-cm-mode-say']) assert.ok(r.text.includes(marker), marker);
             assert.ok(r.text.includes('Sign in'));
         });
 
