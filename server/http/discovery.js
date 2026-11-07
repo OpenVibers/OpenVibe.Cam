@@ -35,7 +35,7 @@ function publicPages() {
     return [
         { path: '/', changefreq: 'weekly', priority: 1.0, title: 'OpenVibe.Cam home', text: 'The camera app, your private cameras and viewer grants, and a still from a Live stream.' },
         { path: '/app', changefreq: 'weekly', priority: 0.9, title: 'The camera app', text: 'A photo with on-device colour, light and softness, a timer, a burst and a grid; the picture is saved to OpenVibe.Pics.' },
-        { path: '/developers', changefreq: 'weekly', priority: 0.6, title: 'The OpenVibe.Cam API', text: 'The JSON API, the viewer-grant rules and the Live cam button contract.' },
+        { path: '/developers', changefreq: 'weekly', priority: 0.6, title: 'The OpenVibe.Cam API and camera element', text: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element you can put on any site.' },
     ];
 }
 
@@ -60,7 +60,7 @@ function createDiscoveryRoutes(ctx) {
             // AGT-5: own pages link their Markdown twins (openvibe-shared 4.108.0); ## Optional is what an agent may skip.
             markdown: true,
             base: site,
-            details: 'GET /api/v1/cameras lists a signed-in person\'s cameras; POST /api/v1/cameras pairs one; POST /api/v1/cameras/:id/grants names a viewer and a number of days; DELETE /api/v1/cameras/:id/grants/:grantId revokes it at once. POST /api/v1/stills takes a frame from OpenVibe.Media\'s public GET /live/:sel/frame.jpg and saves it to OpenVibe.Pics as the person. No route is public except GET /api/v1/stills/:id for an unlisted still.',
+            details: 'The <ov-camera> element loads from /embed/ov-camera.js: facing, filters, timer, mode and upload attributes, ov-camera:capture and ov-camera:error events, and start/stop/capture/flip methods. GET /api/v1/cameras lists a signed-in person\'s cameras; POST /api/v1/cameras pairs one; POST /api/v1/cameras/:id/grants names a viewer and a number of days; DELETE /api/v1/cameras/:id/grants/:grantId revokes it at once. POST /api/v1/stills takes a frame from OpenVibe.Media\'s public GET /live/:sel/frame.jpg and saves it to OpenVibe.Pics as the person. No route is public except GET /api/v1/stills/:id for an unlisted still.',
             sections: [
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Cam', url: abs('/'), note: 'the camera app and the privacy rules' },

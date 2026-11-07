@@ -50,6 +50,7 @@
   "deployed": false,
   "placeholderInSites": false,
   "features": [
+    "the <ov-camera> element at /embed/ov-camera.js: facing, filters, timer, mode and upload attributes; ov-camera:capture and ov-camera:error; start/stop/capture/flip; shadow DOM with --ov-camera-accent and --ov-camera-radius",
     "camera app",
     "photos to Pics",
     "my cameras",

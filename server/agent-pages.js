@@ -33,13 +33,14 @@ function createAgentPages({ config }) {
 
     function developers() {
         return twin('/developers', {
-            index: true, title: 'The OpenVibe.Cam API',
-            description: 'The JSON API, the viewer-grant rules and the Live cam button contract.',
+            index: true, title: 'The OpenVibe.Cam API and camera element',
+            description: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element for any site.',
             jsonLd: [seo.jsonLd.webPage({
-                name: 'The OpenVibe.Cam API', url: `${base()}/developers`,
-                description: 'The JSON API, the viewer-grant rules and the Live cam button contract.', siteUrl: base(),
+                name: 'The OpenVibe.Cam API and camera element', url: `${base()}/developers`,
+                description: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element for any site.', siteUrl: base(),
             })],
-            body: raw(views.developers()),
+            scripts: ['js/developers.js'],
+            body: raw(views.developers({ base: base() })),
         });
     }
 

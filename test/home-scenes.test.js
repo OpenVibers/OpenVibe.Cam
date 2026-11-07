@@ -1,14 +1,17 @@
 'use strict';
 // Cam's home shows the product on its sample picture, labelled Example: a live frame with the cam button's flash and the
 // chat line it posts, a camera's one grant, and one picture through every filter the camera app has, with the same CSS as
-// the app, so the home can never show a filter the camera does not apply.
+// the app, so the home can never show a filter the camera does not apply. The filter table lives in the shared
+// <ov-camera> source (public/embed/ov-camera.js); public/js/cam.js reads window.OVCameraCore instead of copying it.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const views = require('../server/views');
 
 const css = fs.readFileSync(path.join(__dirname, '..', 'public/css/cam.css'), 'utf8');
-const js = fs.readFileSync(path.join(__dirname, '..', 'public/js/cam.js'), 'utf8');
+const appJs = fs.readFileSync(path.join(__dirname, '..', 'public/js/cam.js'), 'utf8');
+const js = fs.readFileSync(path.join(__dirname, '..', 'public/embed/ov-camera.js'), 'utf8');
+assert.ok(appJs.includes('window.OVCameraCore'), 'the camera app reads the element\'s filters');
 const sample = fs.readFileSync(path.join(__dirname, '..', 'public/img/cam-sample.svg'), 'utf8');
 
 const block = js.slice(js.indexOf('var FILTERS = {'), js.indexOf('};', js.indexOf('var FILTERS = {')));

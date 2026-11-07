@@ -4,7 +4,10 @@
 (function () {
     'use strict';
 
-    var FILTERS = {
+    // One source for the filters and the canvas capture: the <ov-camera> element in public/embed/ov-camera.js.
+    // The layout loads that file before this one, so the app and an embed cannot drift apart.
+    var CORE = window.OVCameraCore || null;
+    var FILTERS = (CORE && CORE.FILTERS) || {
         none: 'none',
         mono: 'grayscale(1) contrast(1.08)',
         warm: 'sepia(.35) saturate(1.15)',
@@ -96,6 +99,7 @@
         }
 
         function drawFiltered() {
+            if (CORE && CORE.drawTo) { CORE.drawTo(canvas, video, filterSel.value); return; }
             var w = video.videoWidth || 1280;
             var h = video.videoHeight || 720;
             canvas.width = w;

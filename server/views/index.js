@@ -328,13 +328,65 @@ function signIn({ title, text, next }) {
     return `<div class="cm-wrap cm-page-pad cm-narrow"><div class="cm-empty"><h1>${esc(title)}</h1><p>${esc(text)}</p><a class="cm-btn" href="/auth/login?next=${encodeURIComponent(next)}">Sign in with OpenVibe</a></div></div>`;
 }
 
-function developers() {
+function developers({ base = 'https://openvibe.cam' } = {}) {
     const ep = (m, p, d) => `<div><dt><code>${esc(m)} ${esc(p)}</code></dt><dd>${d}</dd></div>`;
-    return `<div class="cm-wrap" id="cm-developers">
-<header class="cm-page-h"><p class="cm-kicker">Developers</p><h1>The Cam API</h1>
-<p class="cm-lede">JSON under <code>/api/v1</code>, with <code>application/problem+json</code> errors. A person is the <code>cam_at</code> session cookie or a Network user token as a Bearer. No route needs an app or service token.</p></header>
+    const row = (cells) => `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
+    const snippet = `<script src="${base}/embed/ov-camera.js" async></script>
+<ov-camera id="my-cam" facing="user" filters="none,mono,warm,cool,fade,vivid,blur" timer="0" mode="photo" upload="off"></ov-camera>
 
-<section><h2>The camera app</h2><dl class="cm-eps">
+<script>
+  document.getElementById('my-cam').addEventListener('ov-camera:capture', function (e) {
+    // e.detail = { blob, width, height, filter }
+    var img = new Image();
+    img.src = URL.createObjectURL(e.detail.blob);
+    document.body.appendChild(img);
+  });
+</script>`;
+    return `<div class="cm-wrap" id="cm-developers">
+<header class="cm-page-h"><p class="cm-kicker">Developers</p><h1>The Cam API and the camera element</h1>
+<p class="cm-lede">The camera app is also one framework-free element: <code>&lt;ov-camera&gt;</code> runs the preview, the filters, the timer and the burst in the browser, and hands you the picture. The same page has the JSON API under <code>/api/v1</code>, with <code>application/problem+json</code> errors.</p></header>
+
+<section id="cm-embed"><h2>The &lt;ov-camera&gt; element</h2>
+<p class="cm-fine">One script, one tag. Nothing starts until a person clicks or your code calls <code>start()</code>; with <code>upload="off"</code> (the default) the picture never leaves the browser. It uses a shadow root and two CSS custom properties, so a site's own styles cannot leak in.</p>
+<pre class="cm-code"><code>${esc(snippet)}</code></pre>
+<p class="cm-fine">Paste that once. <code>ov-camera:capture</code> fires for every photo (three in <code>mode="burst"</code>); <code>ov-camera:error</code> names what went wrong. The live demo below adds the photo to this page and nowhere else.</p>
+
+<div class="cm-embed-demo">
+<ov-camera id="cm-ov-demo" facing="environment" filters="none,mono,warm,cool,fade,vivid,blur" timer="0" mode="photo" upload="off"></ov-camera>
+<p class="cm-fine" id="cm-ov-demo-status" role="status">Take a photo; it stays in this page.</p>
+<ul class="cm-photos" id="cm-ov-demo-shots"></ul>
+</div>
+
+<h3>Attributes</h3>
+<div class="cm-table-wrap"><table class="cm-grants cm-doc-table"><thead><tr><th scope="col">Attribute</th><th scope="col">Values</th><th scope="col">What it does</th></tr></thead><tbody>
+${row(['<code>facing</code>', '<code>user</code> | <code>environment</code>', 'The front camera (<code>user</code>, the default) or the back one (<code>environment</code>).'])}
+${row(['<code>filters</code>', '<code>none</code>, <code>mono</code>, <code>warm</code>, <code>cool</code>, <code>fade</code>, <code>vivid</code>, <code>blur</code>', 'A comma list of the filters the strip offers. Unknown names are dropped; an empty list is <code>none</code>.'])}
+${row(['<code>timer</code>', '<code>0</code> | <code>3</code> | <code>10</code>', 'A countdown in seconds before a capture, with the number over the preview. Anything else is <code>0</code>.'])}
+${row(['<code>mode</code>', '<code>photo</code> | <code>burst</code>', '<code>photo</code> (the default) takes one; <code>burst</code> takes three, 450 ms apart, and fires three events.'])}
+${row(['<code>upload</code>', '<code>off</code> | <code>openvibe</code>', '<code>off</code> (the default) never sends the picture. <code>openvibe</code> posts it to <code>POST /api/v1/photos</code> as the signed-in person, and only when the page is served from openvibe.cam.'])}
+</tbody></table></div>
+
+<h3>Events</h3>
+<div class="cm-table-wrap"><table class="cm-grants cm-doc-table"><thead><tr><th scope="col">Event</th><th scope="col">detail</th><th scope="col">When</th></tr></thead><tbody>
+${row(['<code>ov-camera:capture</code>', '<code>{ blob, width, height, filter }</code>', 'A photo is ready: a camera capture, a burst shot or a picture picked from disk. The event bubbles and crosses the shadow boundary.'])}
+${row(['<code>ov-camera:error</code>', '<code>{ code, message }</code>', 'The camera or the upload failed. Codes: <code>camera_unavailable</code>, <code>permission_denied</code>, <code>not_started</code>, <code>capture_failed</code>, <code>file_unreadable</code>, <code>upload_unavailable</code>, <code>upload_denied</code>, <code>upload_failed</code>.'])}
+</tbody></table></div>
+
+<h3>Methods</h3>
+<div class="cm-table-wrap"><table class="cm-grants cm-doc-table"><thead><tr><th scope="col">Method</th><th scope="col">Returns</th><th scope="col">What it does</th></tr></thead><tbody>
+${row(['<code>start()</code>', 'a promise', 'Asks for the camera; a click is the safe place to call it. It is never called on connect.'])}
+${row(['<code>stop()</code>', 'nothing', 'Stops every track and returns the viewfinder to the off card.'])}
+${row(['<code>capture()</code>', 'a promise of the detail (three in burst)', 'Takes a photo through the same path as the shutter, honouring <code>timer</code> and <code>mode</code>.'])}
+${row(['<code>flip()</code>', 'a promise of the new facing', 'Switches front/back and restarts the camera if it is on.'])}
+</tbody></table></div>
+
+<p class="cm-fine">Style it with <code>--ov-camera-accent</code> (default <code>#00c7d2</code>) and <code>--ov-camera-radius</code> (default <code>26px</code>). No camera permission? The element keeps its <em>Turn on the camera</em> button and the <em>Or pick a picture</em> picker, so a site still gets an image.</p>
+<p class="cm-fine">In an app with a build step, <a href="https://github.com/OpenVibers/OpenVibe.SDK" rel="noopener">OpenVibe.SDK</a> wraps the loader: <code>import { defineOvCamera } from 'openvibe-sdk/cam'; await defineOvCamera();</code> injects the script once and returns the element class. The typed attributes, events and methods are in the entry's <code>.d.ts</code>.</p>
+</section>
+
+<section><h2>The API</h2>
+<p class="cm-fine">JSON under <code>/api/v1</code>, with <code>application/problem+json</code> errors. A person is the <code>cam_at</code> session cookie or a Network user token as a Bearer. No route needs an app or service token.</p>
+<dl class="cm-eps">
 ${ep('POST', '/api/v1/photos', 'A person; the picture is the raw body (<code>image/jpeg</code>, <code>image/png</code> or <code>image/webp</code>), with optional <code>X-Filter</code>, <code>X-Caption</code> and <code>X-Camera</code> headers (URI-encoded). Cam uploads it to OpenVibe.Pics and stores the link.')}
 ${ep('GET', '/api/v1/photos', 'Your photos, newest first.')}
 ${ep('GET', '/api/v1/photos/:id', 'One of your photos.')}
