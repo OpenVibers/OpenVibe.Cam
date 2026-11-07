@@ -223,3 +223,10 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
     document.addEventListener('ov:boost:load', wire);
 })();
+
+// The home's Copy button beside the <ov-camera> snippet (11-07).
+document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.cm-build-copy[data-copy]') : null;
+    if (!b || !navigator.clipboard) return;
+    navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); }, function () {});
+});

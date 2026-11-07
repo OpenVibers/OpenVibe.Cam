@@ -57,6 +57,19 @@ function grantDemo() {
 }
 
 /** One picture through every filter the camera app has (the same CSS as public/js/cam.js), Warm picked. */
+/**
+ * The camera in your own app (11-07, the owner: "people should be able to use the OpenVibe cam for their own shit …
+ * integrate with the SDK and APIs easily"): the real <ov-camera> element, live on the page (it waits for a tap), beside
+ * the two lines that put it anywhere.
+ */
+function buildDemo() {
+    const code = '<script src="https://openvibe.cam/embed/ov-camera.js" async></script>\n<ov-camera filters="none,warm,vivid"></ov-camera>';
+    return `<div class="cm-build">
+<ov-camera class="cm-build-cam" facing="user" filters="none,mono,warm,vivid" mode="photo" upload="off" aria-label="A live OpenVibe camera: tap to turn it on"></ov-camera>
+<figure class="cm-build-code"><figcaption>Your page</figcaption><pre><code>${esc(code)}</code></pre><button type="button" class="cm-build-copy" data-copy="${esc(code)}">Copy</button></figure>
+</div>`;
+}
+
 function filtersDemo() {
     const thumbs = Object.entries(FILTER_LABEL).map(([id, label]) => `<li${id === 'warm' ? ' class="is-on"' : ''}><img class="cm-f-${id}" src="${SAMPLE}" alt="" width="64" height="48" loading="lazy"><span>${esc(label)}</span></li>`).join('');
     return `<figure class="cm-demo-filters" role="img" aria-label="Example: one picture in each of the camera's filters, with Warm picked and saved to Pics">
@@ -114,6 +127,12 @@ function home({ signedIn = false } = {}) {
             motif: shutterMotif(),
         },
         scenes: [
+            {
+                title: 'Put this camera in your app',
+                text: 'One script and one tag: the same preview, filters, timer and burst, in any page you make. Nothing starts until someone taps, and the picture stays in the browser unless you ask Cam to save it to Pics. This one is live: try it.',
+                html: buildDemo(),
+                action: { href: '/developers', label: 'The element, its events and the API' },
+            },
             {
                 title: 'A still from a stream',
                 text: 'The cam button takes the frame OpenVibe.Media already serves, saves it to your OpenVibe.Pics as a still with your caption, and hands the chat line back to Live. Nothing is recorded and nothing is analysed.',
