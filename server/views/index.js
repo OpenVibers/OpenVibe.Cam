@@ -106,8 +106,8 @@ function home({ signedIn = false } = {}) {
     const room = sc.room({
         room: 'cam',
         hero: {
-            title: 'Every camera has a moment',
-            lede: 'Take a photo with the filters you choose, keep a camera of your own behind a private wall, and share it with one person for a week — or snap a still from a Live stream and send it to the chat.',
+            title: 'A camera that is yours',
+            lede: 'Live filters that run on your phone, photos saved to your OpenVibe.Pics, private cameras you share by the week, and a one-tap still from any stream.',
             start: { href: '/app', label: 'Open the camera' },
             chips: [{ label: 'My cameras', href: '/my' }, { label: 'The API', href: '/developers' }],
             motif: shutterMotif(),
@@ -153,33 +153,68 @@ function home({ signedIn = false } = {}) {
     return `<div class="cm-wrap cm-home" id="cm-home">${room}${live}</div>`;
 }
 
+// The camera app (the owner, 11-07: "the camera app should feel more like an app, especially on phone … a bigger
+// interface … animations"): a viewfinder that fills a phone, the controls on it like a phone camera (grid and timer on
+// top, a filter strip that previews live, the gallery thumb, the shutter and the flip at the bottom), and a large
+// framed viewfinder on a tablet or a desktop. Every control keeps its data-cm hook, so the page still works the same
+// way, and without JavaScript the picker and the API remain.
+const ICONS = {
+    grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 3.5v17M15 3.5v17M3.5 9h17M3.5 15h17"/></svg>',
+    timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M9.5 3.5h5"/></svg>',
+    flip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9a8 8 0 0 1 14.3-3.3L20 7.5M20 3.5v4h-4M20 15a8 8 0 0 1-14.3 3.3L4 16.5M4 20.5v-4h4"/></svg>',
+    photos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="m3.5 16 5-5 4 4 2.5-2.5 5.5 5.5"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15.5V4M7.5 8.5 12 4l4.5 4.5M5 15.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-3.5"/></svg>',
+};
+const FILTER_CSS = { none: 'none', mono: 'grayscale(1) contrast(1.08)', warm: 'sepia(.35) saturate(1.15)', cool: 'hue-rotate(-10deg) saturate(1.1)', fade: 'saturate(.8) contrast(.92) brightness(1.06)', vivid: 'saturate(1.45) contrast(1.06)', blur: 'blur(1.5px)' };
+
 function app({ signedIn = false, photos = [] } = {}) {
     const options = Object.entries(FILTER_LABEL).map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join('');
-    return `<div class="cm-wrap" id="cm-app">
-<header class="cm-page-h"><p class="cm-kicker">The camera app</p><h1>Take a photo</h1>
-<p class="cm-lede">The preview, the timer, the burst and every filter run in your browser. The picture you keep goes to OpenVibe.Pics; Cam stores the link, the filter and your caption.</p></header>
-${signedIn ? '' : `<p class="cm-note">You can try the camera now. <a href="/auth/login?next=%2Fapp">Sign in</a> to save a photo to your Pics.</p>`}
-<section class="cm-camera" id="cm-camera" data-cm-camera>
+    const swatches = Object.entries(FILTER_LABEL).map(([v, label], i) => `<button class="cm-swatch" type="button" role="radio" aria-checked="${i === 0 ? 'true' : 'false'}" data-cm-filter-pick="${esc(v)}"><span class="cm-swatch-chip" style="filter:${esc(FILTER_CSS[v] || 'none')}" aria-hidden="true"></span><span>${esc(label)}</span></button>`).join('');
+    const last = photos[0];
+    const thumb = last && last.pics_direct ? `<img src="${esc(last.pics_direct)}" alt="" loading="lazy">` : ICONS.photos;
+    return `<div class="cm-wrap cm-cam-app" id="cm-app">
+<section class="cm-camera" id="cm-camera" data-cm-camera data-state="off" aria-label="Camera">
 <div class="cm-stage">
 <video data-cm-preview playsinline muted aria-label="Camera preview"></video>
 <canvas data-cm-canvas hidden></canvas>
 <div class="cm-grid-overlay" data-cm-grid hidden aria-hidden="true"></div>
+<div class="cm-flash" data-cm-flash aria-hidden="true"></div>
+<div class="cm-count" data-cm-count aria-hidden="true"></div>
+<div class="cm-off" data-cm-off>
+<span class="ov-icon" data-icon="cam" data-size="64" aria-hidden="true"></span>
+<h1 class="cm-off-title">Camera</h1>
+<p class="cm-off-text">Live filters on your device. Photos you keep go to your OpenVibe.Pics; nothing is recorded.</p>
+<button class="cm-btn cm-btn-big" type="button" data-cm-start>Turn on the camera</button>
+<label class="cm-pick">${ICONS.upload}<span>Or pick a picture</span><input data-cm-file type="file" accept="image/jpeg,image/png,image/webp"></label>
+${signedIn ? '' : '<p class="cm-off-note"><a href="/auth/login?next=%2Fapp">Sign in</a> to save photos to your Pics.</p>'}
 </div>
-<div class="cm-controls">
-<button class="cm-btn" type="button" data-cm-start>Turn the camera on</button>
-<button class="cm-btn cm-btn-quiet" type="button" data-cm-shoot disabled>Take the photo</button>
-<label class="cm-field"><span>Timer</span><select data-cm-timer><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select></label>
-<button class="cm-btn cm-btn-quiet" type="button" data-cm-burst>Burst of 3</button>
-<label class="cm-field"><span>Filter</span><select data-cm-filter>${options}</select></label>
-<label class="cm-field"><span>Caption</span><input data-cm-caption type="text" maxlength="280" placeholder="A line for the photo"></label>
-<button class="cm-btn cm-btn-quiet" type="button" data-cm-grid-toggle aria-pressed="false">Grid</button>
+<div class="cm-top">
+<button class="cm-round" type="button" data-cm-grid-toggle aria-pressed="false" aria-label="Grid">${ICONS.grid}</button>
+<button class="cm-pill" type="button" data-cm-timer-btn aria-label="Timer: off">${ICONS.timer}<b data-cm-timer-label>Off</b></button>
 </div>
+<div class="cm-filters" role="radiogroup" aria-label="Filter" data-cm-filters>${swatches}</div>
+</div>
+<div class="cm-bar">
+<a class="cm-thumb" data-cm-thumb href="${signedIn ? '#cm-gallery' : '/auth/login?next=%2Fapp'}" aria-label="Your photos">${thumb}</a>
+<div class="cm-shoot-wrap">
+<div class="cm-modes" role="radiogroup" aria-label="Mode"><button class="cm-mode" type="button" role="radio" aria-checked="true" data-cm-mode="photo">Photo</button><button class="cm-mode" type="button" role="radio" aria-checked="false" data-cm-mode="burst">Burst</button></div>
+<button class="cm-shutter" type="button" data-cm-shoot aria-label="Take the photo"><span></span></button>
+</div>
+<button class="cm-round cm-flip" type="button" data-cm-flip aria-label="Switch camera">${ICONS.flip}</button>
+</div>
+<div class="cm-under">
+<label class="cm-caption"><span class="cm-sr">Caption</span><input data-cm-caption type="text" maxlength="280" placeholder="Add a caption (optional)"></label>
 <p class="cm-status" data-cm-status role="status">The camera is off.</p>
-<label class="cm-field"><span>Or pick a picture</span><input data-cm-file type="file" accept="image/jpeg,image/png,image/webp"></label>
-<noscript><p class="cm-fine">The live preview needs JavaScript. You can still use the API at <code>POST /api/v1/photos</code>.</p></noscript>
+</div>
+<div class="cm-legacy" hidden>
+<select data-cm-timer aria-hidden="true" tabindex="-1"><option value="0">Off</option><option value="3">3 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option></select>
+<select data-cm-filter aria-hidden="true" tabindex="-1">${options}</select>
+<button type="button" data-cm-burst tabindex="-1">Burst of 3</button>
+</div>
+<noscript><p class="cm-fine">The live camera needs JavaScript. You can still pick a picture, or use the API at <code>POST /api/v1/photos</code>.</p></noscript>
 </section>
 <section class="cm-section" id="cm-gallery" aria-labelledby="cm-gallery-h">
-<div class="cm-head-row"><h2 id="cm-gallery-h">Your photos</h2>${signedIn ? `<span class="cm-count">${photos.length} recent</span>` : ''}</div>
+<div class="cm-head-row"><h2 id="cm-gallery-h">Your photos</h2>${signedIn ? `<span class="cm-count-label">${photos.length} recent</span>` : ''}</div>
 ${signedIn ? (photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true })).join('')}</ul>` : empty('No photo yet. Take one above; it will appear here once Pics has it.', '/app', 'Take a photo')) : empty('Sign in to see the photos you saved to Pics.', '/auth/login?next=%2Fapp', 'Sign in with OpenVibe')}
 </section>
 </div>`;

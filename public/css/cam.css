@@ -59,26 +59,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 
 /* The motif: an iris opening onto a contact sheet */
 
-/* The camera: a dark viewfinder with thirds, the controls beside it on a wide screen */
-.cm-camera { display: grid; gap: 14px; margin-top: 18px; }
-@media (min-width: 960px) { .cm-camera { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); align-items: start; } .cm-camera > .cm-status, .cm-camera > .cm-field, .cm-camera > noscript { grid-column: 2; } }
-.cm-stage { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 22px; background: #05070c; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06), 0 22px 50px -30px rgba(0, 0, 0, .8); }
-.cm-stage video, .cm-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.cm-stage::after { content: ''; position: absolute; inset: 14px; border-radius: 12px; pointer-events: none;
-    background: linear-gradient(currentColor, currentColor) top left / 22px 2px no-repeat, linear-gradient(currentColor, currentColor) top left / 2px 22px no-repeat,
-    linear-gradient(currentColor, currentColor) top right / 22px 2px no-repeat, linear-gradient(currentColor, currentColor) top right / 2px 22px no-repeat,
-    linear-gradient(currentColor, currentColor) bottom left / 22px 2px no-repeat, linear-gradient(currentColor, currentColor) bottom left / 2px 22px no-repeat,
-    linear-gradient(currentColor, currentColor) bottom right / 22px 2px no-repeat, linear-gradient(currentColor, currentColor) bottom right / 2px 22px no-repeat;
-    color: rgba(255, 255, 255, .55); }
-.cm-grid-overlay { position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255, 255, 255, .35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255, 255, 255, .35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
-                linear-gradient(transparent calc(33.333% - .5px), rgba(255, 255, 255, .35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255, 255, 255, .35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
-.cm-grid-overlay[hidden] { display: none; }
-.cm-controls { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; align-content: start; }
-.cm-controls .cm-field { grid-column: 1 / -1; }
-.cm-controls [data-cm-start], .cm-controls [data-cm-shoot] { grid-column: 1 / -1; min-height: 48px; justify-content: center; }
-.cm-controls [data-cm-shoot]:not([disabled]) { background: var(--accent-strong, var(--room-accent)); color: var(--on-accent-strong, #fff); border-color: transparent; }
-.cm-status { margin: 0; font-variant-numeric: tabular-nums; color: var(--text-secondary, #96a7c2); }
 
 /* Photos, stills and cameras */
 .cm-photos, .cm-stills, .cm-cameras { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
@@ -110,10 +90,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .cm-grants th { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
 
 /* Phones: the motif is a faint corner mark behind the hero text, so it drops the contact sheet and fades the iris */
-/* The controls read top to bottom: power and shutter, the settings, then the two toggles side by side */
-.cm-controls [data-cm-start], .cm-controls [data-cm-shoot] { order: 1; }
-.cm-controls .cm-field { order: 2; }
-.cm-controls [data-cm-burst], .cm-controls [data-cm-grid-toggle] { order: 3; justify-content: center; }
 
 /* ── The home's scenes, shown for real (10-31): a live frame and its still, a camera's grant, the filters ── */
 /* The filters, the same CSS as public/js/cam.js's FILTERS (test/home-scenes.test.js keeps them equal). */
@@ -222,3 +198,90 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 
 /* Inline code in prose breaks anywhere: a full URL in a step ran 61 px past a 320 px screen (2026-11-01). */
 .cm-steps code, .cm-fine code, main li code, main p code { overflow-wrap: anywhere; }
+
+
+/* ── The camera app (11-07: "feel more like an app, especially on phone … a bigger interface … animations") ──────────
+   A phone gets the whole screen under the bar: the viewfinder, its controls on it like a phone camera (grid and timer on
+   top, the filter strip, the gallery thumb, the shutter and the flip at the bottom). A tablet or a desktop gets a large
+   framed viewfinder with the same controls. Motion only where something happens: the shutter press, the flash, the
+   countdown, the filter strip's snap. */
+.cm-cam-app { display: grid; gap: 22px; }
+.cm-camera { position: relative; display: grid; gap: 12px; margin: 0; }
+.cm-stage { position: relative; overflow: hidden; border-radius: 26px; background: #04060b; aspect-ratio: 4 / 3; max-height: 72vh; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 30px 70px -40px rgba(0,0,0,.9); isolation: isolate; }
+.cm-stage video, .cm-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: filter .25s ease; }
+.cm-camera[data-facing="user"] .cm-stage video { transform: scaleX(-1); }
+.cm-grid-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255,255,255,.35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
+                linear-gradient(transparent calc(33.333% - .5px), rgba(255,255,255,.35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
+.cm-grid-overlay[hidden] { display: none; }
+/* The flash on capture, and the countdown's big number. */
+.cm-flash { position: absolute; inset: 0; z-index: 4; background: #fff; opacity: 0; pointer-events: none; }
+.cm-flash.is-on { animation: cm-flash .42s ease-out; }
+@keyframes cm-flash { 0% { opacity: .85; } 100% { opacity: 0; } }
+.cm-count { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; font-size: clamp(72px, 22vw, 160px); font-weight: 900; color: #fff; text-shadow: 0 6px 30px rgba(0,0,0,.5); pointer-events: none; }
+.cm-count:empty { display: none; }
+.cm-count.is-tick { animation: cm-tick .9s cubic-bezier(.2,1.3,.4,1); }
+@keyframes cm-tick { 0% { transform: scale(1.6); opacity: 0; } 30% { transform: scale(1); opacity: 1; } 100% { opacity: .2; } }
+/* Off: a calm card on the dark stage, one big button. */
+.cm-off { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; color: #e8ecf3;
+    background: radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--room-accent) 22%, #04060b) 0%, #04060b 70%); }
+.cm-camera:not([data-state="off"]) .cm-off { display: none; }
+.cm-off-title { margin: 6px 0 0; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.03em; }
+.cm-off-text { margin: 0; max-width: 34ch; color: rgba(232,236,243,.75); line-height: 1.5; }
+.cm-off-note { margin: 0; font-size: 14px; color: rgba(232,236,243,.75); }
+.cm-off-note a { color: #fff; font-weight: 700; }
+.cm-btn-big { min-height: 52px; padding: 0 26px; border-radius: 999px; font-size: 16px; font-weight: 800; background: var(--room-accent); color: var(--room-on, #fff); border-color: transparent; box-shadow: 0 10px 30px -12px var(--room-accent); }
+.cm-pick { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 999px; color: rgba(232,236,243,.85); font-weight: 650; cursor: pointer; }
+.cm-pick svg { width: 18px; height: 18px; }
+.cm-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.cm-pick:hover { background: rgba(255,255,255,.08); }
+/* On the stage: the top bar and the filter strip. */
+.cm-top { position: absolute; z-index: 2; top: 12px; left: 12px; right: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.cm-round, .cm-pill { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; min-width: 44px; padding: 0 12px; border: 0; border-radius: 999px; color: #fff; background: rgba(4,6,11,.45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; transition: background-color .15s, transform .15s; }
+.cm-round { padding: 0; width: 44px; }
+.cm-round svg, .cm-pill svg { width: 20px; height: 20px; }
+.cm-round[aria-pressed="true"], .cm-pill.is-set { background: color-mix(in srgb, var(--room-accent) 75%, rgba(4,6,11,.4)); }
+.cm-round:active, .cm-pill:active { transform: scale(.94); }
+.cm-filters { position: absolute; z-index: 2; left: 0; right: 0; bottom: 12px; display: flex; gap: 8px; padding: 4px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.cm-filters::-webkit-scrollbar { display: none; }
+.cm-swatch { flex: none; scroll-snap-align: center; display: grid; justify-items: center; gap: 4px; padding: 4px; border: 0; background: none; color: #fff; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.cm-swatch-chip { width: 46px; height: 46px; border-radius: 14px; box-shadow: 0 0 0 2px rgba(255,255,255,.35); transition: box-shadow .15s, transform .15s;
+    background: radial-gradient(circle at 30% 30%, #ffd27a 0 18%, transparent 19%), linear-gradient(160deg, #6fb6ff, #8f6bff 45%, #ff7aa8 75%, #ffcf6b); }
+.cm-swatch[aria-checked="true"] .cm-swatch-chip { box-shadow: 0 0 0 3px #fff; transform: scale(1.06); }
+.cm-camera[data-state="off"] .cm-top, .cm-camera[data-state="off"] .cm-filters { display: none; }
+/* Under the stage: the gallery thumb, the mode switch over the shutter, the flip. */
+.cm-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 0 6px; }
+.cm-thumb { justify-self: start; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; overflow: hidden; color: var(--text-secondary, #96a7c2); background: var(--bg-card, #0f1729); box-shadow: inset 0 0 0 1px var(--border, #1f2d47); }
+.cm-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cm-thumb svg { width: 24px; height: 24px; }
+.cm-thumb.is-new { animation: cm-pop .5s cubic-bezier(.2,1.5,.35,1); }
+@keyframes cm-pop { 0% { transform: scale(.6); } 100% { transform: none; } }
+.cm-flip { justify-self: end; color: var(--text-primary, #e6edf7); background: var(--bg-card, #0f1729); box-shadow: inset 0 0 0 1px var(--border, #1f2d47); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.cm-shoot-wrap { display: grid; justify-items: center; gap: 8px; }
+.cm-modes { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--text-primary, #e6edf7) 6%, transparent); }
+.cm-mode { height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: var(--text-secondary, #96a7c2); font: inherit; font-size: 12.5px; font-weight: 750; letter-spacing: .02em; text-transform: uppercase; cursor: pointer; }
+.cm-mode[aria-checked="true"] { color: var(--room-strong, var(--room-accent)); background: color-mix(in srgb, var(--room-accent) 16%, transparent); }
+.cm-shutter { position: relative; display: grid; place-items: center; width: 76px; height: 76px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.cm-shutter::before { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 4px var(--text-primary, #e6edf7); }
+.cm-shutter span { width: 60px; height: 60px; border-radius: 50%; background: var(--text-primary, #e6edf7); transition: transform .12s ease, background-color .15s; }
+.cm-shutter:active span, .cm-shutter.is-firing span { transform: scale(.86); }
+.cm-camera[data-mode="burst"] .cm-shutter span { background: var(--room-accent); }
+.cm-shutter:focus-visible { outline: 3px solid var(--room-accent); outline-offset: 4px; }
+.cm-under { display: grid; gap: 8px; justify-items: center; }
+.cm-caption { width: min(100%, 520px); }
+.cm-caption input { width: 100%; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #0f1729); color: inherit; font: inherit; text-align: center; box-sizing: border-box; }
+.cm-caption input:focus { outline: 2px solid var(--room-accent); outline-offset: 1px; }
+.cm-status { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-secondary, #96a7c2); }
+.cm-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.cm-count-label { font-size: 13px; color: var(--text-muted, #7386a3); }
+/* A phone: the whole screen under the bar, the controls in the thumb's reach. */
+@media (max-width: 700px) {
+    .cm-cam-app { gap: 18px; }
+    .cm-wrap.cm-cam-app, .cm-cam-app { padding-top: 0; }
+    .cm-camera { margin: 0 calc(-1 * var(--cm-gutter, 16px)); min-height: calc(100dvh - var(--ovnav-h, 60px)); grid-template-rows: 1fr auto auto; gap: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+    .cm-stage { aspect-ratio: auto; max-height: none; min-height: 0; border-radius: 0 0 26px 26px; }
+    .cm-bar { padding: 0 16px; }
+    .cm-under { padding: 0 16px; }
+}
+@media (min-width: 701px) { .cm-cam-app { padding-top: 18px; } .cm-stage { width: 100%; } .cm-bar { width: min(100%, 560px); margin: 0 auto; } .cm-filters { justify-content: safe center; } }
+@media (prefers-reduced-motion: reduce) { .cm-flash.is-on, .cm-count.is-tick, .cm-thumb.is-new { animation: none; } .cm-stage video { transition: none; } }
