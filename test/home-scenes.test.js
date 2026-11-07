@@ -1,7 +1,7 @@
 'use strict';
-// Cam's home shows the real thing (the owner, 10-31: placeholder pictures made the rooms look unfinished): a live frame
-// with the cam button's flash and the chat line it posts, a camera's one grant, and one picture through every filter the
-// camera app has, with the same CSS as the app, so the home can never show a filter the camera does not apply.
+// Cam's home shows the product on its sample picture, labelled Example: a live frame with the cam button's flash and the
+// chat line it posts, a camera's one grant, and one picture through every filter the camera app has, with the same CSS as
+// the app, so the home can never show a filter the camera does not apply.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -21,10 +21,10 @@ for (const [id, filter] of Object.entries(app)) {
 }
 
 const home = views.home({ signedIn: false });
-assert.ok(home.includes('class="cm-demo-live"') && home.includes('class="cm-live-flash"') && home.includes('caught a still'), 'a live still, shown');
-assert.ok(home.includes('class="cm-demo-grant"') && home.includes('can watch') && home.includes('Revoke'), 'a grant, shown');
+assert.ok(home.includes('class="cm-demo-live"') && home.includes('class="cm-live-flash"') && home.includes('a still is posted to the stream'), 'a live still, shown as an example');
+assert.ok(home.includes('class="cm-demo-grant"') && home.includes('One viewer') && home.includes('Revoke'), 'a grant, shown as an example');
 assert.ok(home.includes('class="cm-demo-filters"'), 'the filters, shown');
 for (const id of Object.keys(app)) assert.ok(home.includes(`class="cm-f-${id}"`), `the ${id} filter is in the strip`);
 assert.ok(!/<img src="\/img\/cam-shutter\.svg"/.test(home), 'no placeholder picture in a scene');
 assert.ok(!/<script/i.test(sample) && !/href=|xlink:/i.test(sample), 'the sample picture is a plain drawing');
-console.log(`cam home scenes: ${Object.keys(app).length} filters equal to the camera's, three real scenes`);
+console.log(`cam home scenes: ${Object.keys(app).length} filters equal to the camera's, three example scenes`);

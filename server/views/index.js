@@ -33,33 +33,34 @@ function frameUrl(config, camera) {
     return `${String(config.upstreams.media).replace(/\/+$/, '')}/live/${encodeURIComponent(camera.slot)}/frame.jpg?w=640`;
 }
 
-// The home's three scenes show the real thing (the owner, 10-31: placeholder pictures made rooms look unfinished). They
-// share one picture, public/img/cam-sample.svg, drawn so it shows no one.
+// The home's three scenes show what the product does on one sample picture, public/img/cam-sample.svg, drawn so it shows
+// no one. The camera list and grants are the signed-in owner's, private and not in this public page, so the scenes are
+// illustrations and each says Example — never a written-in viewer, camera name or count.
 const SAMPLE = '/img/cam-sample.svg';
 const CAMERA = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 
 /** The cam button on a live stream: the frame, the shutter's flash, and the line it posts in the chat. */
 function liveStillDemo() {
-    return `<figure class="cm-demo-live" role="img" aria-label="A live stream, the cam button's flash, and the chat line it posts">
-<div class="cm-live-frame"><img src="${SAMPLE}" alt="" width="320" height="240" loading="lazy"><span class="cm-live-badge">Live</span><span class="cm-live-flash"></span><span class="cm-live-btn">${CAMERA}</span></div>
-<p class="cm-live-chat"><span class="cm-live-who">ada</span> caught a still: <q>the sun just touched the ridge</q></p>
+    return `<figure class="cm-demo-live" role="img" aria-label="Example: a live stream, the cam button's flash, and the chat line it posts">
+<div class="cm-live-frame"><img src="${SAMPLE}" alt="" width="320" height="240" loading="lazy"><span class="cm-live-badge">Live · example</span><span class="cm-live-flash"></span><span class="cm-live-btn">${CAMERA}</span></div>
+<p class="cm-live-chat"><span class="cm-live-who">Chat</span> a still is posted to the stream</p>
 </figure>`;
 }
 
 /** A paired camera and the one grant on it: who, for how long, and the way to take it back. */
 function grantDemo() {
-    return `<div class="cm-demo-grant" role="img" aria-label="A private camera shared with one person for a week">
-<div class="cm-g-cam"><img src="${SAMPLE}" alt="" width="64" height="48" loading="lazy"><span class="cm-g-name"><b>Back garden</b><span>Raspberry Pi · private</span></span><span class="cm-g-lock">${LOCK}</span></div>
-<div class="cm-g-grant"><span class="cm-g-who">@ada can watch</span><span class="cm-g-left">5 of 7 days left</span><span class="cm-g-bar"><i></i></span><span class="cm-g-revoke">Revoke</span></div>
+    return `<div class="cm-demo-grant" role="img" aria-label="Example: a private camera shared with one viewer for a week">
+<div class="cm-g-cam"><img src="${SAMPLE}" alt="" width="64" height="48" loading="lazy"><span class="cm-g-name"><b>A private camera</b><span>Example grant · Raspberry Pi</span></span><span class="cm-g-lock">${LOCK}</span></div>
+<div class="cm-g-grant"><span class="cm-g-who">One viewer</span><span class="cm-g-left">for a week</span><span class="cm-g-bar"><i></i></span><span class="cm-g-revoke">Revoke</span></div>
 </div>`;
 }
 
 /** One picture through every filter the camera app has (the same CSS as public/js/cam.js), Warm picked. */
 function filtersDemo() {
     const thumbs = Object.entries(FILTER_LABEL).map(([id, label]) => `<li${id === 'warm' ? ' class="is-on"' : ''}><img class="cm-f-${id}" src="${SAMPLE}" alt="" width="64" height="48" loading="lazy"><span>${esc(label)}</span></li>`).join('');
-    return `<figure class="cm-demo-filters" role="img" aria-label="One picture in each of the camera's filters, with Warm picked and saved to Pics">
-<div class="cm-f-main"><img class="cm-f-warm" src="${SAMPLE}" alt="" width="320" height="240" loading="lazy"><span class="cm-f-saved">Warm · saved to Pics</span></div>
+    return `<figure class="cm-demo-filters" role="img" aria-label="Example: one picture in each of the camera's filters, with Warm picked and saved to Pics">
+<div class="cm-f-main"><img class="cm-f-warm" src="${SAMPLE}" alt="" width="320" height="240" loading="lazy"><span class="cm-f-saved">Example · Warm · saved to Pics</span></div>
 <ul class="cm-f-strip">${thumbs}</ul>
 </figure>`;
 }
