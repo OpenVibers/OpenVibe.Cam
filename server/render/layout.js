@@ -70,7 +70,7 @@ function renderPage(o) {
     const crumbs = (o.crumbs || []).length
         ? `<nav class="crumbs" aria-label="Breadcrumbs">${o.crumbs.map((c, i) => `${i ? ' / ' : ''}${c.href ? `<a href="${c.href}">${c.label}</a>` : c.label}`).join('')}</nav>`
         : '';
-    const scripts = (o.scripts || []).map((rel) => `<script src="${asset(rel)}" defer></script>`);
+    const scripts = (o.scripts || []).map((rel) => `<script src="${asset(rel)}" defer></script>`).join('');
     return shell.page({
         name: SITE_NAME,
         lang: 'en',
@@ -93,8 +93,9 @@ ${appIcon.headTags({ site: 'cam' })}
 <link rel="stylesheet" href="${ovServe.url('showcase.css')}">
 <link rel="stylesheet" href="${asset('css/cam.css')}">
 <script src="${ovServe.url('motion.js')}" defer></script>
+<script src="${asset('embed/ov-camera.js')}" defer></script>
 <script src="${asset('js/cam.js')}" defer></script>
-${render(scripts)}
+${scripts}
 <meta name="ov-boost" content="cam@${require('./html').esc(RELEASE)}">
 <script src="${require('openvibe-shared/serve').url('boost.js')}" data-main="#main" defer></script>`,
         body: `<a class="skip" href="#main">Skip to content</a>

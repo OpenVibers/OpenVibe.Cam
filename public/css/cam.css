@@ -285,3 +285,12 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 }
 @media (min-width: 701px) { .cm-cam-app { padding-top: 18px; } .cm-stage { width: 100%; } .cm-bar { width: min(100%, 560px); margin: 0 auto; } .cm-filters { justify-content: safe center; } }
 @media (prefers-reduced-motion: reduce) { .cm-flash.is-on, .cm-count.is-tick, .cm-thumb.is-new { animation: none; } .cm-stage video { transition: none; } }
+
+
+/* The /developers embed: the attributes, events and methods tables read as text, not as nowrap cells, and the live
+   element sits in the page's own column. */
+.cm-doc-table td, .cm-doc-table th { white-space: normal; vertical-align: top; overflow-wrap: anywhere; }
+.cm-doc-table td:first-child, .cm-doc-table th:first-child { width: 1%; white-space: nowrap; }
+.cm-doc-table code { overflow-wrap: anywhere; }
+.cm-embed-demo { max-width: 660px; margin: 18px 0 8px; }
+.cm-embed-demo .cm-photos { margin-top: 10px; }

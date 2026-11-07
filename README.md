@@ -24,6 +24,8 @@ private to its owner, and a viewer sees it only while the grant the owner gave i
   most. `@username` is resolved through OpenVibe.Network (`identity.subject.resolve`); a subject id works without
   it. A re-grant extends the active grant instead of making a second one. Revocation writes a timestamp, and the
   wall checks it on every read, so the next request is refused.
+- **The camera element.** `<ov-camera>` puts the same preview, filters, timer and burst on any site: one script from
+  `https://openvibe.cam/embed/ov-camera.js`, a capture event with the blob, and no upload unless the site asks for it.
 - **The Live cam button.** Live calls `POST /api/v1/stills` with the viewer's own Network token. Cam fetches
   OpenVibe.Media's public `GET /live/:slot/frame.jpg` (only `image/jpeg` is accepted), uploads the JPEG to
   OpenVibe.Pics as that person, and returns the still and the exact line Live posts in the stream chat.
@@ -138,6 +140,35 @@ Live is the caller. It holds the viewer's Network token in its own session; it s
 Cam needs no app/service token for this, and Live needs no new Cam grant. A still is `unlisted` by default; pass
 `"visibility": "private"` to keep it to its owner. Media caches one frame per slot for five seconds and rate-limits
 by address, so a burst of button presses can answer `429 cam.frame_busy`.
+
+## The camera element
+
+The camera app is also one framework-free custom element, at `https://openvibe.cam/embed/ov-camera.js` and documented
+live at [openvibe.cam/developers](https://openvibe.cam/developers). It is one script and one tag; with the default
+`upload="off"` the picture never leaves the browser.
+
+```html
+<script src="https://openvibe.cam/embed/ov-camera.js" async></script>
+<ov-camera id="cam" facing="user" filters="none,mono,warm,cool,fade,vivid,blur" timer="0" mode="photo" upload="off"></ov-camera>
+<script>
+  document.getElementById('cam').addEventListener('ov-camera:capture', function (e) {
+    // e.detail = { blob, width, height, filter }
+  });
+</script>
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `facing` | `user` (front) or `environment` (back) | `user` |
+| `filters` | comma list of `none`, `mono`, `warm`, `cool`, `fade`, `vivid`, `blur` | `none` |
+| `timer` | `0`, `3` or `10` seconds | `0` |
+| `mode` | `photo` or `burst` (three, 450 ms apart) | `photo` |
+| `upload` | `off`, or `openvibe` to post to `POST /api/v1/photos` when the page is openvibe.cam and signed in | `off` |
+
+Events: `ov-camera:capture` with `{ blob, width, height, filter }` and `ov-camera:error` with `{ code, message }`.
+Methods: `start()`, `stop()`, `capture()`, `flip()`. Style with `--ov-camera-accent` and `--ov-camera-radius`. The
+element never starts the camera on connect; a click (or an explicit `start()`) does. OpenVibe.SDK wraps the loader as
+`openvibe-sdk/cam` (`defineOvCamera()`), with the attributes, events and methods typed.
 
 ## Pages
 

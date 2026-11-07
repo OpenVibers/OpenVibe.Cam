@@ -140,6 +140,9 @@ async function createApp(opts = {}) {
             const rel = path.relative(PUBLIC_DIR, filePath).split(path.sep).join('/');
             const v = res.req && res.req.query && res.req.query.v;
             res.setHeader('Cache-Control', cache.assetHeaders(rel, { hashed: !!v && v === assetVersion(rel) }));
+            // The <ov-camera> element is meant to load from other sites (a classic <script>), so it is the one asset
+            // that says cross-origin; helmet's same-site default would make a browser refuse it there.
+            if (rel.startsWith('embed/')) res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         },
     }));
 
