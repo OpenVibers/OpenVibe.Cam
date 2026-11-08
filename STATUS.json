@@ -10,11 +10,11 @@
   "domain": "openvibe.cam",
   "contracts": "openvibe-contracts v0.338.0",
   "sdk": "openvibe-sdk v0.94.0",
-  "shared": "openvibe-shared v4.148.0",
+  "shared": "openvibe-shared v4.149.0",
   "packages": [
     "openvibe-contracts v0.338.0",
     "openvibe-sdk v0.94.0",
-    "openvibe-shared v4.148.0"
+    "openvibe-shared v4.149.0"
   ],
   "summary": "OpenVibe.Cam is the camera app, the private wall for cameras a person owns, the API Live's cam button calls, and F1's event timeline. The camera preview, timer, burst, grid and filter run in the browser; a photo is posted to Cam and forwarded to OpenVibe.Pics with the person's own Network token. A camera is private: its owner sees it, and a viewer sees it only while a grant naming them is unrevoked and unexpired, checked on every read, so a revocation is refused at once. Familiar faces proxy the owner's own token to OpenVibe.Vision's library; Cam keeps only the Vision library id and no template or crop. A detection becomes one event with a 10 s/20 s clip reference, a still, away-mode priority, a Network notification, a private link and a police export.",
   "works": [
