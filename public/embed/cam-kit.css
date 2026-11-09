@@ -1,0 +1,59 @@
+:host { all: initial; }
+.camkit { --accent: #72e6d6; position: fixed; inset: 0; z-index: 2147483647; display: grid; place-items: center; background: rgba(5, 10, 16, .94); color: #fff; font: 500 16px/1.4 system-ui, sans-serif; box-sizing: border-box; }
+.camkit *, .camkit *::before, .camkit *::after { box-sizing: border-box; }
+.camkit button { font: inherit; cursor: pointer; color: inherit; border: 0; }
+.camkit button:focus-visible, .camkit input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.camkit .stage { position: relative; width: min(100vw, 950px); height: min(100dvh, 760px); min-height: 380px; overflow: hidden; background: #10151a; border-radius: 22px; box-shadow: 0 24px 90px #0009; }
+.camkit .preview, .camkit .review video, .camkit .review img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #10151a; }
+.camkit .shade { pointer-events: none; position: absolute; inset: 0; background: linear-gradient(#071016a6, transparent 25%, transparent 62%, #071016dd); }
+.camkit header, .camkit footer { position: absolute; z-index: 2; left: 0; right: 0; }
+.camkit header { z-index: 4; }
+.camkit header { top: 0; display: flex; align-items: center; gap: 18px; padding: 18px 24px; }
+.camkit header .clock { margin-left: auto; font-variant-numeric: tabular-nums; }
+.camkit .brand { font-size: 15px; letter-spacing: .02em; }.camkit .brand strong { color: var(--accent); }
+.camkit .icon { display: grid; place-items: center; width: 48px; height: 48px; flex: 0 0 48px; background: #fff2; border-radius: 50%; font-size: 26px; backdrop-filter: blur(12px); }
+.camkit .icon:hover, .camkit .retake:hover { background: #fff4; }
+.camkit .close { font-size: 32px; line-height: 1; }
+.camkit footer { bottom: 0; padding: 24px 28px max(22px, env(safe-area-inset-bottom)); }
+.camkit .tools { display: flex; justify-content: center; gap: 26px; margin-bottom: 20px; }
+.camkit .tools .timer { font-size: 15px; font-weight: 700; }
+.camkit .shutter-row { display: grid; grid-template-columns: minmax(0, 1fr) 86px minmax(0, 1fr); align-items: center; gap: 12px; }
+.camkit .mode-label { justify-self: end; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; }
+.camkit .limit { justify-self: start; font-size: 13px; font-variant-numeric: tabular-nums; }
+.camkit .shutter { width: 86px; height: 86px; border: 4px solid #fff; padding: 7px; border-radius: 50%; background: conic-gradient(var(--accent) var(--progress, 0%), #ffffff50 0); box-shadow: 0 0 0 3px #10151a; transition: transform .15s; }
+.camkit .shutter:hover { transform: scale(1.05); }
+.camkit .shutter span { display: block; width: 100%; height: 100%; background: #fff; border-radius: 50%; transition: border-radius .2s, transform .2s, background .2s; }
+.camkit .shutter.recording span { transform: scale(.54); border-radius: 12px; background: #fb514d; }
+.camkit .hint { min-height: 20px; text-align: center; margin-top: 12px; color: #e4e9ed; font-size: 13px; }
+.camkit .permission { position: absolute; z-index: 3; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; text-align: center; background: radial-gradient(circle at 50% 30%, #23434b, #10151a 70%); }
+.camkit .permission[hidden], .camkit .review[hidden], .camkit .countdown[hidden], .camkit [hidden] { display: none !important; }
+.camkit .permission-mark { display: grid; place-items: center; width: 88px; height: 88px; border: 2px solid var(--accent); border-radius: 50%; font-size: 58px; line-height: 1; color: var(--accent); }
+.camkit .permission h2 { font-size: clamp(26px, 5vw, 42px); margin: 22px 0 8px; }
+.camkit .permission p { max-width: 380px; color: #d6e0e4; margin: 0 0 26px; }
+.camkit .allow, .camkit .use { min-height: 48px; padding: 11px 28px; border-radius: 30px; background: var(--accent); color: #052227; font-weight: 800; }
+.camkit .allow:hover, .camkit .use:hover { background: #b1fff3; }
+.camkit .message { position: absolute; z-index: 5; top: 90px; left: 16px; right: 16px; text-align: center; color: #fff; text-shadow: 0 1px 5px #000; pointer-events: none; }
+.camkit .countdown { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; background: #0008; font-size: 100px; font-weight: 800; }
+.camkit .review { position: absolute; z-index: 3; inset: 0; background: #10151a; }
+.camkit .play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: #071016b8; font-size: 27px; backdrop-filter: blur(12px); }
+.camkit .review-actions { position: absolute; left: 0; right: 0; bottom: max(24px, env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 16px; padding: 0 20px; }
+.camkit .retake { min-height: 48px; padding: 10px 25px; border-radius: 30px; background: #fff3; backdrop-filter: blur(12px); }
+.camkit .use:disabled { opacity: .55; cursor: wait; }
+.camkit .trim { position: absolute; left: 50%; bottom: 105px; transform: translateX(-50%); width: min(90%, 520px); padding: 15px 20px; border-radius: 18px; background: #091217dd; backdrop-filter: blur(12px); }
+.camkit .trim-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+.camkit .trim label { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.camkit .trim input { width: 100%; min-height: 30px; accent-color: var(--accent); }
+@media (max-width: 700px) {
+  .camkit .stage { width: 100vw; height: 100dvh; min-height: 0; border-radius: 0; box-shadow: none; }
+  .camkit .preview, .camkit .review video, .camkit .review img { object-fit: cover; }
+  .camkit header { padding: max(14px, env(safe-area-inset-top)) 15px 12px; }
+  .camkit footer { padding: 18px 14px max(22px, env(safe-area-inset-bottom)); }
+  .camkit .tools { gap: 18px; }
+  .camkit .brand { font-size: 13px; }
+  .camkit .trim { bottom: 100px; }
+}
+
+/* Real stroke icons in the controls (11-09): sized by the button, white on the glass. */
+.camkit .icon svg { width: 22px; height: 22px; display: block; }
+.camkit .play svg { display: block; }
+.camkit .permission-mark svg { display: block; margin: 0 auto; }

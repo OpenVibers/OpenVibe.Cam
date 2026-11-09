@@ -39,7 +39,7 @@ function createAgentPages({ config }) {
                 name: 'The OpenVibe.Cam API and camera element', url: `${base()}/developers`,
                 description: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element for any site.', siteUrl: base(),
             })],
-            scripts: ['js/developers.js'],
+            scripts: ['embed/cam-kit.js', 'js/developers.js'],
             body: raw(views.developers({ base: base() })),
         });
     }

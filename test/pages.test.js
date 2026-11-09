@@ -39,7 +39,7 @@ function jsonLd(html) {
             assert.strictEqual(r.status, 200);
             assert.strictEqual(r.headers.get('cache-control'), 'private, no-store');
             assert.strictEqual(r.headers.get('vary'), 'Cookie');
-            assert.strictEqual(r.headers.get('permissions-policy'), 'camera=(self), microphone=(), geolocation=(), payment=()');
+            assert.strictEqual(r.headers.get('permissions-policy'), 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()');
         });
 
         await check('/app has the camera controls and the gallery', async () => {
@@ -113,7 +113,7 @@ function jsonLd(html) {
             assert.strictEqual(r.status, 200);
             assert.strictEqual(r.headers.get('cache-control'), 'public, max-age=60');
             for (const marker of ['id="cm-developers"', 'POST /api/v1/stills', 'POST /api/v1/photos', '/live/:slot/frame.jpg', 'openvibe.pics/api/v1/images', 'id="cm-live-button"', '/api/v1/cameras/:id/grants',
-                'id="cm-embed"', '<ov-camera', 'ov-camera:capture', 'ov-camera:error', 'id="cm-ov-demo"', '--ov-camera-accent', '--ov-camera-radius', 'openvibe-sdk/cam', 'https://github.com/OpenVibers/OpenVibe.SDK']) assert.ok(r.text.includes(marker), marker);
+                'id="cm-kit"', 'OpenVibeCam.open', 'sha384-', 'id="cm-kit-demo"', 'id="cm-embed"', '<ov-camera', 'ov-camera:capture', 'ov-camera:error', 'id="cm-ov-demo"', '--ov-camera-accent', '--ov-camera-radius', 'openvibe-sdk/cam', 'https://github.com/OpenVibers/OpenVibe.SDK']) assert.ok(r.text.includes(marker), marker);
             const embedScript = r.text.indexOf('/embed/ov-camera.js?v=');
             const camScript = r.text.indexOf('/js/cam.js?v=');
             assert.ok(embedScript > 0 && camScript > embedScript, 'the element loads before the camera app');
@@ -144,6 +144,10 @@ function jsonLd(html) {
             assert.match(embed.headers.get('content-type'), /javascript/);
             assert.strictEqual(embed.headers.get('cache-control'), 'public, max-age=31536000, immutable');
             assert.strictEqual(embed.headers.get('cross-origin-resource-policy'), 'cross-origin', 'another site may load the element');
+            assert.strictEqual(embed.headers.get('access-control-allow-origin'), '*', 'a pinned cross-origin script needs CORS');
+            const kit = await t.get('/embed/cam-kit.js');
+            assert.strictEqual(kit.status, 200);
+            assert.strictEqual(kit.headers.get('access-control-allow-origin'), '*');
             assert.ok(embed.text.includes("define('ov-camera'"), 'the embed registers the element');
             assert.ok(embed.text.includes('ov-camera:capture'), 'the embed emits the capture event');
             const plainEmbed = await t.get('/embed/ov-camera.js');

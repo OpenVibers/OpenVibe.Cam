@@ -17,6 +17,9 @@
  *   notFound()
  */
 const { esc, time } = require('../render/html');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const kit = require('openvibe-shared/kit');
 const sc = require('openvibe-shared/showcase');
 
@@ -354,6 +357,15 @@ function signIn({ title, text, next }) {
 }
 
 function developers({ base = 'https://openvibe.cam' } = {}) {
+    const sri = 'sha384-' + crypto.createHash('sha384').update(fs.readFileSync(path.join(__dirname, '../../public/embed/cam-kit.js'))).digest('base64');
+    const kitSnippet = `<script src="${base}/embed/cam-kit.js" integrity="${sri}" crossorigin="anonymous" defer></script>
+<button id="record">Record a clip</button>
+<script>
+  document.getElementById('record').addEventListener('click', async function () {
+    const result = await OpenVibeCam.open({ mode: 'video', maxSeconds: 60 });
+    if (result) { /* result.file is yours to upload or preview */ }
+  });
+</script>`;
     const ep = (m, p, d) => `<div><dt><code>${esc(m)} ${esc(p)}</code></dt><dd>${d}</dd></div>`;
     const row = (cells) => `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`;
     const snippet = `<script src="${base}/embed/ov-camera.js" async></script>
@@ -370,6 +382,13 @@ function developers({ base = 'https://openvibe.cam' } = {}) {
     return `<div class="cm-wrap" id="cm-developers">
 <header class="cm-page-h"><p class="cm-kicker">Developers</p><h1>The Cam API and the camera element</h1>
 <p class="cm-lede">The camera app is also one framework-free element: <code>&lt;ov-camera&gt;</code> runs the preview, the filters, the timer and the burst in the browser, and hands you the picture. The same page has the JSON API under <code>/api/v1</code>, with <code>application/problem+json</code> errors.</p></header>
+
+<section id="cm-kit"><h2>OpenVibeCam: record on your site</h2>
+<p class="cm-fine">One script opens Cam on the calling page. On a phone it fills the screen; on a computer it opens a centred stage. The person sees a plain permission prompt, records, reviews, trims and chooses <em>Use this</em>. Cam hands your page a <code>File</code> and metadata; your page decides where to upload it. Cancelling resolves to <code>null</code>.</p>
+<pre class="cm-code"><code>${esc(kitSnippet)}</code></pre>
+<p class="cm-fine"><code>OpenVibeCam.open({ mode: 'video' | 'photo' | 'screen', maxSeconds, timer, onDone })</code> resolves to <code>{ file, mode, mimeType, duration, width, height, maxSeconds }</code>. <code>onDone(result)</code> runs when Use this is pressed and may return a promise. <code>mode</code> defaults to <code>video</code>, <code>maxSeconds</code> defaults to 60, and <code>timer</code> is 0, 3 or 10 seconds. The screen option appears when the browser supports screen capture. Space starts or stops recording; Esc closes. Photos and recordings stay in the browser until your page handles the file. To upload, pass <code>result.file</code> to your site's uploader; use ov-upload's resumable path when it is available.</p>
+<button class="cm-btn" id="cm-kit-demo" type="button">Try the recorder</button><p class="cm-fine" id="cm-kit-status" role="status">The demo keeps the file on this page.</p>
+</section>
 
 <section id="cm-embed"><h2>The &lt;ov-camera&gt; element</h2>
 <p class="cm-fine">One script, one tag. Nothing starts until a person clicks or your code calls <code>start()</code>; with <code>upload="off"</code> (the default) the picture never leaves the browser. It uses a shadow root and two CSS custom properties, so a site's own styles cannot leak in.</p>
