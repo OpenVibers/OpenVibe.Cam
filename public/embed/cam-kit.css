@@ -52,3 +52,8 @@
   .camkit .brand { font-size: 13px; }
   .camkit .trim { bottom: 100px; }
 }
+
+/* Real stroke icons in the controls (11-09): sized by the button, white on the glass. */
+.camkit .icon svg { width: 22px; height: 22px; display: block; }
+.camkit .play svg { display: block; }
+.camkit .permission-mark svg { display: block; margin: 0 auto; }
