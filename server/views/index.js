@@ -385,6 +385,7 @@ function developers({ base = 'https://openvibe.cam' } = {}) {
 
 <section id="cm-kit"><h2>OpenVibeCam: record on your site</h2>
 <p class="cm-fine">One script opens Cam on the calling page. On a phone it fills the screen; on a computer it opens a centred stage. The person sees a plain permission prompt, records, reviews, trims and chooses <em>Use this</em>. Cam hands your page a <code>File</code> and metadata; your page decides where to upload it. Cancelling resolves to <code>null</code>.</p>
+<p class="cm-fine">For an in-place studio, the same SRI-pinned script exposes <code>OpenVibeCam.core</code>: <code>devices()</code>, <code>constraints({ facing, lens, mic, resolution })</code>, <code>open(options)</code>, <code>meter(stream, onLevel)</code>, <code>network()</code> and <code>stop(stream)</code>. Only <code>open()</code> asks for camera or microphone access; call it after the person's explicit action. Saved lens and mic ids are hints on another browser and fall back to its available devices.</p>
 <pre class="cm-code"><code>${esc(kitSnippet)}</code></pre>
 <p class="cm-fine"><code>OpenVibeCam.open({ mode: 'video' | 'photo' | 'screen', maxSeconds, timer, onDone })</code> resolves to <code>{ file, mode, mimeType, duration, width, height, maxSeconds }</code>. <code>onDone(result)</code> runs when Use this is pressed and may return a promise. <code>mode</code> defaults to <code>video</code>, <code>maxSeconds</code> defaults to 60, and <code>timer</code> is 0, 3 or 10 seconds. The screen option appears when the browser supports screen capture. Space starts or stops recording; Esc closes. Photos and recordings stay in the browser until your page handles the file. To upload, pass <code>result.file</code> to your site's uploader; use ov-upload's resumable path when it is available.</p>
 <button class="cm-btn" id="cm-kit-demo" type="button">Try the recorder</button><p class="cm-fine" id="cm-kit-status" role="status">The demo keeps the file on this page.</p>
@@ -437,6 +438,8 @@ ${ep('GET', '/api/v1/photos/:id', 'One of your photos.')}
 </dl></section>
 
 <section><h2>My cameras and viewer grants</h2><dl class="cm-eps">
+${ep('GET', '/api/v1/me/camera-settings', 'Your saved facing, lens, mic, resolution and mirror choices. Defaults are returned before you save.')}
+${ep('PUT', '/api/v1/me/camera-settings', '<code>{ facing?, lens?, mic?, resolution?, mirror? }</code>. Partial updates preserve your other choices; a signed-in person only.')}
 ${ep('GET', '/api/v1/cameras', 'Your paired cameras with their active grant count.')}
 ${ep('POST', '/api/v1/cameras', '<code>{ name, source, stream_id?, slot?, notes? }</code>. A stream id is read from Live and must be on your channel.')}
 ${ep('PATCH', '/api/v1/cameras/:id', '<code>{ name?, source?, status?, slot?, notes? }</code>; the owner only.')}

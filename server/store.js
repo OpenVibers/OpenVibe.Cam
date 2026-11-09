@@ -180,6 +180,27 @@ function createStore(s, { config }) {
     const clock = () => s.iso();
     const daysFromNow = (days) => new Date(s.now() + Number(days) * 86_400_000).toISOString();
 
+    const defaultCameraSettings = Object.freeze({ facing: 'user', lens: 'main', mic: 'default', resolution: '720', mirror: true });
+    const cameraSettings = async (owner) => {
+        const row = await db.maybe('SELECT facing, lens, mic, resolution, mirror, updated_at FROM cam_camera_settings WHERE owner = $1', [owner]);
+        return row ? { facing: row.facing, lens: row.lens, mic: row.mic, resolution: row.resolution, mirror: row.mirror, updated_at: iso(row.updated_at) }
+            : { ...defaultCameraSettings, updated_at: null };
+    };
+    const putCameraSettings = async (owner, body) => {
+        if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some((key) => !['facing', 'lens', 'mic', 'resolution', 'mirror'].includes(key)))
+            return refusal(400, 'cam.invalid', 'Only facing, lens, mic, resolution and mirror may be set.');
+        const next = { ...await cameraSettings(owner), ...body };
+        if (!['user', 'environment'].includes(next.facing) || !['480', '720', '1080'].includes(next.resolution) || typeof next.mirror !== 'boolean'
+            || ![next.lens, next.mic].every((v) => typeof v === 'string' && v.length > 0 && v.length <= 120 && !controlChars(v)))
+            return refusal(400, 'cam.invalid', 'Camera settings contain an invalid value.');
+        await db.exec(`INSERT INTO cam_camera_settings (owner, facing, lens, mic, resolution, mirror, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
+            ON CONFLICT (owner) DO UPDATE SET facing = EXCLUDED.facing, lens = EXCLUDED.lens, mic = EXCLUDED.mic,
+            resolution = EXCLUDED.resolution, mirror = EXCLUDED.mirror, updated_at = EXCLUDED.updated_at`,
+        [owner, next.facing, next.lens, next.mic, next.resolution, next.mirror, clock()]);
+        return { ok: true, settings: await cameraSettings(owner) };
+    };
+
     async function cameraById(id, t) {
         return await q(t).maybe('SELECT * FROM cam_cameras WHERE id = $1', [String(id || '')]);
     }
@@ -553,6 +574,7 @@ function createStore(s, { config }) {
     }
 
     return {
+        cameraSettings, putCameraSettings,
         wireCamera, wireGrant, wirePhoto, wireStill,
         cameraById, camerasOf, createCamera, patchCamera, removeCamera, setFamiliarFaces, presenceOf, setPresence,
         grantCamera, grantsOf, revokeGrant, activeGrant, accessTo, wall,
