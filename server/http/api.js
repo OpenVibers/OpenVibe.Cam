@@ -15,6 +15,8 @@
  *   GET    /cameras/:id/grants              owner
  *   POST   /cameras/:id/grants              owner: @username or subject, and days
  *   DELETE /cameras/:id/grants/:grantId     owner: revoke at once
+ *   GET    /me/camera-settings              your camera choices on every site
+ *   PUT    /me/camera-settings              save facing, lens, mic, resolution and mirror
  *   GET    /live                            who is live on OpenVibe.Live now (the camera app's Live mode)
  *   POST   /stills                          the Live cam button: fetch Media's frame, save to Pics
  *   GET    /stills                          your stills
@@ -37,6 +39,19 @@ function createApi(ctx) {
     const r = asyncRouter();
 
     r.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+    // A site can call settings with a person's Bearer token; browser sessions stay same-origin.
+    r.use((req, res, next) => {
+        if (req.path !== '/me/camera-settings') return next();
+        const origin = req.get('origin');
+        if (['https://openvibe.cam', 'https://openvibe.live', 'https://openvibe.video', 'https://openvibe.codes'].includes(origin)) {
+            res.set('Access-Control-Allow-Origin', origin);
+            res.set('Vary', 'Origin');
+            res.set('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
+            res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+            if (req.method === 'OPTIONS') return res.sendStatus(204);
+        }
+        return next();
+    });
     r.use(principal.middleware);
 
     // Per-actor limits, on top of the per-address limit in server/app.js: a signed-in person gets the minute and
@@ -97,6 +112,13 @@ function createApi(ctx) {
         if (req.method === 'POST' && req.path === '/photos') return next();
         if (req.method === 'POST' && (/^\/cameras\/[^/]+\/events$/.test(req.path) || /^\/cameras\/[^/]+\/familiar-faces\/(enroll|match)$/.test(req.path))) return next();
         return jsonBody(req, res, next);
+    });
+
+    r.get('/me/camera-settings', requirePerson, async (req, res) => res.json(await cameras.cameraSettings(req.principal.subject)));
+    r.put('/me/camera-settings', requirePerson, async (req, res) => {
+        const out = await cameras.putCameraSettings(req.principal.subject, req.body);
+        if (!out.ok) return problem(res, out.status, out.code, out.message);
+        return res.json(out.settings);
     });
 
     // ── Cameras ─────────────────────────────────────────────

@@ -8,6 +8,51 @@
     var active = null;
     var MODES = ['video', 'photo', 'screen'];
 
+    // Shared capture primitives for a site's in-place studio. Nothing requests permission until open() is called.
+    var core = Object.freeze({
+        devices: function () { return win.navigator.mediaDevices.enumerateDevices(); },
+        constraints: function (o) {
+            o = o || {};
+            var height = Number(o.resolution) || 720;
+            return {
+                video: o.video === false ? false : {
+                    facingMode: { ideal: o.facing || 'user' },
+                    ...(o.lens && o.lens !== 'main' && o.lens !== 'default' ? { deviceId: { ideal: o.lens } } : {}),
+                    width: { ideal: Math.round(height * 16 / 9) }, height: { ideal: height },
+                },
+                audio: o.audio === false ? false : o.mic && o.mic !== 'default' ? { deviceId: { ideal: o.mic } } : true,
+            };
+        },
+        open: function (o) { return win.navigator.mediaDevices.getUserMedia(core.constraints(o)); },
+        stop: stopTracks,
+        network: function () {
+            if (win.navigator.onLine === false) return 'offline';
+            var c = win.navigator.connection || win.navigator.mozConnection || win.navigator.webkitConnection;
+            return c && (/2g|3g/.test(c.effectiveType || '') || c.downlink && c.downlink < 2.5) ? 'weak' : 'good';
+        },
+        meter: function (stream, onLevel) {
+            var AC = win.AudioContext || win.webkitAudioContext;
+            if (!AC || !stream.getAudioTracks().length) return function () {};
+            var ctx = new AC(), analyser = ctx.createAnalyser(), data = new Uint8Array(512), frame = 0, closed = false;
+            analyser.fftSize = 512;
+            ctx.createMediaStreamSource(stream).connect(analyser);
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(function () {});
+                win.document.addEventListener('pointerdown', function () { ctx.resume().catch(function () {}); }, { once: true, capture: true });
+            }
+            function tick() {
+                if (closed) return;
+                analyser.getByteTimeDomainData(data);
+                var sum = 0;
+                for (var i = 0; i < data.length; i++) { var d = (data[i] - 128) / 128; sum += d * d; }
+                onLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
+                frame = win.requestAnimationFrame(tick);
+            }
+            frame = win.requestAnimationFrame(tick);
+            return function () { closed = true; win.cancelAnimationFrame(frame); ctx.close().catch(function () {}); };
+        },
+    });
+
     function optionsFor(input) {
         var o = input || {};
         if (MODES.indexOf(o.mode || 'video') < 0) throw new TypeError('mode must be video, photo or screen');
@@ -105,7 +150,7 @@
             async function start() {
                 if (!supported(opts.mode, win.navigator)) { say('This browser cannot use the selected camera mode.'); return; }
                 try {
-                    var next = opts.mode === 'screen' ? await win.navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }) : await win.navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: opts.mode === 'video' });
+                    var next = opts.mode === 'screen' ? await win.navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }) : await core.open({ facing: facing, audio: opts.mode === 'video' });
                     if (done) { stopTracks(next); return; }
                     stopTracks(stream); stream = next;
                     preview.srcObject = stream; await preview.play();
@@ -255,6 +300,6 @@
         });
     }
 
-    win.OpenVibeCam = Object.freeze({ open: open });
+    win.OpenVibeCam = Object.freeze({ open: open, core: core });
     if (typeof module === 'object' && module.exports) module.exports = { optionsFor: optionsFor, supported: supported, secondsText: secondsText };
 })(typeof window !== 'undefined' ? window : null);

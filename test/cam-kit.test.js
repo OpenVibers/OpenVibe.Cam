@@ -9,6 +9,10 @@ const window = { document: { currentScript: { src: 'https://openvibe.cam/embed/c
 vm.runInNewContext(source, { window, URL, Blob, File, Promise, Number, String, Date, setTimeout, clearTimeout, setInterval, clearInterval });
 
 assert.strictEqual(typeof window.OpenVibeCam.open, 'function');
+assert.strictEqual(typeof window.OpenVibeCam.core.open, 'function');
+assert.strictEqual(typeof window.OpenVibeCam.core.devices, 'function');
+assert.strictEqual(typeof window.OpenVibeCam.core.meter, 'function');
+assert.strictEqual(window.OpenVibeCam.core.constraints({ facing: 'environment', resolution: '1080', audio: false }).video.height.ideal, 1080);
 assert(Object.isFrozen(window.OpenVibeCam));
 assert.throws(() => window.OpenVibeCam.open({ mode: 'invalid' }), /mode must be/);
 assert(!/\brequire\(|\bimport\s/.test(source.replace(/\/\*[\s\S]*?\*\//g, '')));
