@@ -143,6 +143,25 @@ by address, so a burst of button presses can answer `429 cam.frame_busy`.
 
 ## The camera element
 
+### Recording kit
+
+`https://openvibe.cam/embed/cam-kit.js` opens a camera on the calling page. It uses a full-screen stage on phones and a centred stage on computers. The caller owns the result and any upload; Cam does not store video bytes.
+
+```html
+<script src="https://openvibe.cam/embed/cam-kit.js" defer></script>
+<button id="record">Record</button>
+<script>
+  document.getElementById('record').addEventListener('click', async () => {
+    const result = await OpenVibeCam.open({ mode: 'video', maxSeconds: 60 });
+    if (result) console.log(result.file, result.duration);
+  });
+</script>
+```
+
+The script can be pinned with the SHA-384 SRI hash shown on [/developers](https://openvibe.cam/developers). `OpenVibeCam.open({ mode: 'video' | 'photo' | 'screen', maxSeconds, timer, onDone })` resolves to `{ file, mode, mimeType, duration, width, height, maxSeconds }` after **Use this**, or `null` when closed. `onDone(result)` may return a promise. Video and screen modes use the browser's `MediaRecorder`; screen capture appears when available. The review has two trim handles and exports the selected clip when supported. Pass the returned file to the calling site's uploader, using ov-upload's resumable uploader when available.
+
+### Photo element
+
 The camera app is also one framework-free custom element, at `https://openvibe.cam/embed/ov-camera.js` and documented
 live at [openvibe.cam/developers](https://openvibe.cam/developers). It is one script and one tag; with the default
 `upload="off"` the picture never leaves the browser.

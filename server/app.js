@@ -105,7 +105,7 @@ async function createApp(opts = {}) {
         referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
     // The camera app is same-origin only; there is no microphone in v1.
-    app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=()'); next(); });
+    app.use((_req, res, next) => { res.set('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()'); next(); });
     app.use(cookieParser());
 
     // ── Machine endpoints ───────────────────────────────────
@@ -142,7 +142,10 @@ async function createApp(opts = {}) {
             res.setHeader('Cache-Control', cache.assetHeaders(rel, { hashed: !!v && v === assetVersion(rel) }));
             // The <ov-camera> element is meant to load from other sites (a classic <script>), so it is the one asset
             // that says cross-origin; helmet's same-site default would make a browser refuse it there.
-            if (rel.startsWith('embed/')) res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            if (rel.startsWith('embed/')) {
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+            }
         },
     }));
 

@@ -198,7 +198,7 @@ function createPageRoutes(ctx) {
         index: true, cache: PUBLIC_CACHE, title: 'The OpenVibe.Cam API and camera element',
         description: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element for any site.',
         jsonLd: [seo.jsonLd.webPage({ name: 'The OpenVibe.Cam API and camera element', url: `${base()}/developers`, description: 'The JSON API, the viewer-grant rules, the Live cam button contract, and the <ov-camera> element for any site.', siteUrl: base() })],
-        scripts: ['js/developers.js'],
+        scripts: ['embed/cam-kit.js', 'js/developers.js'],
         body: raw(views.developers({ base: base() })),
     }));
 

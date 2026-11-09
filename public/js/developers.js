@@ -7,6 +7,15 @@
     var status = document.getElementById('cm-ov-demo-status');
     if (!demo || !shots) return;
 
+    var kitDemo = document.getElementById('cm-kit-demo');
+    if (kitDemo) kitDemo.addEventListener('click', async function () {
+        var status = document.getElementById('cm-kit-status');
+        try {
+            var result = await window.OpenVibeCam.open({ mode: 'video', maxSeconds: 30 });
+            if (status) status.textContent = result ? 'Ready: ' + result.file.name + ' (' + Math.round(result.file.size / 1024) + ' KB). It stayed on this page.' : 'Cancelled.';
+        } catch (err) { if (status) status.textContent = err.message || 'The recorder could not open.'; }
+    });
+
     function say(text) { if (status) status.textContent = text; }
 
     document.addEventListener('ov-camera:capture', function (e) {
