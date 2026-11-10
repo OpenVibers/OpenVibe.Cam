@@ -2,6 +2,9 @@
 
 > Your camera, your cameras, and the moment Live's cam button takes.
 
+**Live site:** https://openvibe.cam · **API docs:** https://openvibe.services · **For AI:** https://openvibe.cam/llms.txt
+**Run it:** `npm ci && npm run dev` (Node 22 or newer) · **Tests:** `npm test`
+
 **Status:** v1 written and tested (see [STATUS.json](STATUS.json)).
 **Domain:** `openvibe.cam` · **Port:** 5160 · **Service id:** `cam` · **Env prefix:** `CAM`
 **License:** AGPL-3.0-only (same as every OpenVibe service).
