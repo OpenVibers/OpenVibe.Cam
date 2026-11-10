@@ -208,8 +208,7 @@
         '.camera[data-mode="burst"] .shutter span{background:var(--_accent)}',
         '.shutter[disabled]{opacity:.45;cursor:not-allowed}',
         '.status{margin:0;min-height:1.4em;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--_muted)}',
-        '.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
-        '@media (prefers-reduced-motion:reduce){.count.is-tick{animation:none}.stage video{transition:none}}'
+        '.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}'
     ].join('');
 
     var TEMPLATE = '<div class="wrap camera" part="wrap"><div class="stage" part="stage">'

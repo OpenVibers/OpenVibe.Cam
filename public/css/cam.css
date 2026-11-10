@@ -146,9 +146,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .cm-f-strip li.is-on { color: var(--ovk-text); font-weight: 700; }
 .cm-f-strip li.is-on img { outline-color: var(--room-accent, var(--ovk-accent)); }
 
-@media (prefers-reduced-motion: reduce) {
-  .cm-live-btn, .cm-live-flash, .cm-live-chat, .cm-g-bar i, .cm-f-saved { animation: none; }
-}
 
 /* The room's motif: the camera's viewfinder on the sample picture. The focus square locks once and the shutter waits;
    nothing loops. */
@@ -176,7 +173,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
   .cm-vf { width: min(100%, 280px); border-radius: 18px; }
   .cm-vf-shutter { width: 44px; height: 44px; margin-left: -22px; bottom: 14px; }
 }
-@media (prefers-reduced-motion: reduce) { .cm-vf-focus { animation: none; } }
 
 /* A code sample scrolls inside its own box; a long line never widens the page on a phone (11-01 phone sweep). */
 .cm-code { max-width: 100%; overflow-x: auto; padding: 12px 14px; border: 1px solid var(--border, #26344d); border-radius: 12px; background: var(--bg-card, #0f1729); font-size: .84rem; line-height: 1.5; }
@@ -328,7 +324,6 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
     .cm-shutter span { width: 66px; height: 66px; }
     .cm-under { grid-column: 1; grid-row: 2; grid-template-columns: minmax(0, 520px) auto; justify-content: center; align-items: center; gap: 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .cm-flash.is-on, .cm-count.is-tick, .cm-thumb.is-new { animation: none; } .cm-stage video, .cm-mode-say, .cm-mode { transition: none; } }
 
 
 /* The /developers embed: the attributes, events and methods tables read as text, not as nowrap cells, and the live
