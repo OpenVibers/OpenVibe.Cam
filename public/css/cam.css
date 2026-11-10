@@ -8,7 +8,7 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .cm { display: block; }
 .cm a { color: var(--room-strong); }
 .cm .ovk-i { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-.cm-wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 64px; }
+.cm-wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
 .cm-narrow { max-width: 620px; }
 .cm-page-pad { padding-top: clamp(28px, 6vw, 64px); }
 .cm h2 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -.01em; }
