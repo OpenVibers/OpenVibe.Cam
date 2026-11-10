@@ -16,6 +16,10 @@ private to its owner, and a viewer sees it only while the grant the owner gave i
   softness. The filter runs on the canvas in the person's browser; the server never applies an effect. The picture
   is posted to Cam, which forwards it to OpenVibe.Pics with the person's own Network token. There is no server-side
   image analysis and no face recognition.
+- **Edit in Studio.** A photo you saved opens in Studio with `GET /edit?pics=<Pics slug>&from=cam` on
+  `openvibe.studio`; Studio asks OpenVibe.Pics, with your own token, whether you may read it, then loads it into
+  Photo with `From OpenVibe.Cam` beside it. The link is on each of your photo cards and on the capture result; a
+  photo of someone else's answers 404. `CAM_STUDIO_URL` moves the link for a drill.
 - **My cameras.** Pair an old phone, a browser, a Pi or an IP camera you own. If a Live stream id is given, Cam
   reads it from OpenVibe.Live's public API and refuses a stream on somebody else's channel; the slot defaults to the
   stream's managed slot. Its wall is private: `/w/<id>` answers its owner and an active grantee, and 404 to
