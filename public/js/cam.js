@@ -20,6 +20,10 @@
     // The camera on the page now. Leaving the page, for good or for another one swapped in place (boost), turns it off.
     var stopCamera = null;
     function off() { if (stopCamera) { stopCamera(); stopCamera = null; } }
+    function studioBase() {
+        var camera = document.getElementById('cm-camera');
+        return (camera && camera.getAttribute('data-cm-studio-edit')) || '';
+    }
     window.addEventListener('pagehide', off);
     document.addEventListener('ov:boost:before', off);
 
@@ -129,6 +133,14 @@
             img.loading = 'lazy';
             a.appendChild(img);
             li.appendChild(a);
+            var studioBase = root.getAttribute('data-cm-studio-edit') || '';
+            if (studioBase && p.pics_slug) {
+                var edit = document.createElement('a');
+                edit.className = 'cm-edit-studio';
+                edit.href = studioBase + encodeURIComponent(p.pics_slug) + '&from=cam';
+                edit.textContent = 'Edit in Studio';
+                li.appendChild(edit);
+            }
             list.insertBefore(li, list.firstChild);
             // The thumb shows the newest photo, with a small pop.
             if (thumb) {
@@ -151,6 +163,12 @@
                         if (!res.ok) { say((body && body.detail) || 'The photo was not saved.'); return null; }
                         say('Saved to OpenVibe.Pics.');
                         addToGallery(body);
+                        if (statusEl && studioBase() && body && body.pics_slug) {
+                            var edit = document.createElement('a');
+                            edit.href = studioBase() + encodeURIComponent(body.pics_slug) + '&from=cam';
+                            edit.textContent = ' Edit in Studio';
+                            statusEl.appendChild(edit);
+                        }
                         return body;
                     });
                 })

@@ -54,6 +54,16 @@ const { JPEG } = require('./helpers/upstreams');
             assert.strictEqual((await t.get('/api/v1/photos', { as: bob })).json().count, 0);
         });
 
+        await check('the capture result and the gallery link the photo to Studio', async () => {
+            const app = await t.get('/app', { as: alice });
+            assert.strictEqual(app.status, 200);
+            assert.ok(app.text.includes(`https://openvibe.studio/edit?pics=${photo.pics_slug}&from=cam`), 'the gallery card links to Studio');
+            assert.ok(app.text.includes('Edit in Studio'), 'the action has its name');
+            assert.ok(app.text.includes(`data-cm-studio-edit="https://openvibe.studio/edit?pics="`), 'the capture result knows where Studio is');
+            const mine = await t.get('/my', { as: alice });
+            assert.ok(mine.text.includes(`https://openvibe.studio/edit?pics=${photo.pics_slug}&from=cam`), 'Your photos links too');
+        });
+
         await check('a photo attached to a camera is unlisted and appears on the wall for an active grantee', async () => {
             camera = (await t.get('/api/v1/cameras', { as: alice, json: { name: 'Front door', slot: 'whip' } })).json();
             const r = await t.get('/api/v1/photos', {

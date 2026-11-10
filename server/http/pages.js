@@ -57,7 +57,7 @@ function createPageRoutes(ctx) {
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, title: 'The camera app',
             description: 'Take a photo with on-device colour, light and blur, a timer, a burst and a grid; save it to OpenVibe.Pics.',
-            body: raw(views.app({ signedIn: Boolean(signedIn(req)), photos })),
+            body: raw(views.app({ signedIn: Boolean(signedIn(req)), photos, studioUrl: config.studioUrl })),
         });
     });
 
@@ -69,7 +69,7 @@ function createPageRoutes(ctx) {
         return page(req, res, {
             title: 'My cameras',
             description: 'Pair a camera you own, grant one viewer for a week, and revoke it at once.',
-            body: raw(views.my({ viewer: req.viewer, cameras: list, photos, stills, counts, problem })),
+            body: raw(views.my({ viewer: req.viewer, cameras: list, photos, stills, counts, problem, studioUrl: config.studioUrl })),
         }, status);
     }
 
@@ -101,7 +101,7 @@ function createPageRoutes(ctx) {
             description: `Manage ${camera.name}: its slot, its viewers and its wall.`,
             body: raw(views.camera({
                 camera, grants: grants.ok ? grants.grants : [], photos: wall ? wall.photos : [],
-                frameUrl: views.frameUrl(config, camera), problem,
+                frameUrl: views.frameUrl(config, camera), problem, studioUrl: config.studioUrl,
             })),
         }, status);
     }
@@ -170,7 +170,7 @@ function createPageRoutes(ctx) {
         return page(req, res, {
             title: camera.name,
             description: 'A private camera wall on OpenVibe.Cam.',
-            body: raw(views.wall({ camera, access: { owner: wall.owner, grant: wall.grant }, photos: wall.photos, frameUrl: views.frameUrl(config, camera) })),
+            body: raw(views.wall({ camera, access: { owner: wall.owner, grant: wall.grant }, photos: wall.photos, frameUrl: views.frameUrl(config, camera), studioUrl: config.studioUrl })),
         });
     });
 

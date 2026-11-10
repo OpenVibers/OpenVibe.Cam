@@ -20,6 +20,8 @@ function load(env = process.env) {
 
     return {
         service: 'cam',
+        // Where "Edit in Studio" goes for a saved photo (the hand-off route).
+        studioUrl: trim(env.CAM_STUDIO_URL || 'https://openvibe.studio'),
         port,
         host: env.HOST || '127.0.0.1',
         nodeEnv,

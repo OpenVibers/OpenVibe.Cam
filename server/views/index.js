@@ -92,10 +92,13 @@ function shutterMotif() {
 </div>`;
 }
 
-function photoCard(p, { owner = false } = {}) {
+function photoCard(p, { owner = false, studioUrl = null } = {}) {
+    const studio = owner && studioUrl && p.pics_slug
+        ? `<a class="cm-edit-studio" href="${esc(String(studioUrl).replace(/\/+$/, ''))}/edit?pics=${encodeURIComponent(p.pics_slug)}&from=cam">Edit in Studio</a>`
+        : '';
     return `<li class="cm-photo" data-photo="${esc(p.id)}">
 <a class="cm-photo-link" href="${esc(p.pics_url)}" rel="noopener"><img src="${esc(p.pics_direct)}" alt="${esc(p.caption || 'A photo on OpenVibe.Cam')}" loading="lazy" width="320" height="240"></a>
-<span class="cm-photo-meta">${esc(FILTER_LABEL[p.filter] || p.filter || 'None')}${p.caption ? ` · ${esc(p.caption)}` : ''}${owner ? ` · ${day(p.created_at)}` : ''}</span>
+<span class="cm-photo-meta">${esc(FILTER_LABEL[p.filter] || p.filter || 'None')}${p.caption ? ` · ${esc(p.caption)}` : ''}${owner ? ` · ${day(p.created_at)}` : ''}</span>${studio}
 </li>`;
 }
 
@@ -190,13 +193,13 @@ const ICONS = {
 };
 const FILTER_CSS = { none: 'none', mono: 'grayscale(1) contrast(1.08)', warm: 'sepia(.35) saturate(1.15)', cool: 'hue-rotate(-10deg) saturate(1.1)', fade: 'saturate(.8) contrast(.92) brightness(1.06)', vivid: 'saturate(1.45) contrast(1.06)', blur: 'blur(1.5px)' };
 
-function app({ signedIn = false, photos = [] } = {}) {
+function app({ signedIn = false, photos = [], studioUrl = 'https://openvibe.studio' } = {}) {
     const options = Object.entries(FILTER_LABEL).map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join('');
     const swatches = Object.entries(FILTER_LABEL).map(([v, label], i) => `<button class="cm-swatch" type="button" role="radio" aria-checked="${i === 0 ? 'true' : 'false'}" data-cm-filter-pick="${esc(v)}"><span class="cm-swatch-chip" style="filter:${esc(FILTER_CSS[v] || 'none')}" aria-hidden="true"></span><span>${esc(label)}</span></button>`).join('');
     const last = photos[0];
     const thumb = last && last.pics_direct ? `<img src="${esc(last.pics_direct)}" alt="" loading="lazy">` : ICONS.photos;
     return `<div class="cm-wrap cm-cam-app" id="cm-app">
-<section class="cm-camera" id="cm-camera" data-cm-camera data-state="off" aria-label="Camera">
+<section class="cm-camera" id="cm-camera" data-cm-camera data-state="off" aria-label="Camera" data-cm-studio-edit="${esc(String(studioUrl).replace(/\/+$/, ''))}/edit?pics=">
 <div class="cm-stage">
 <video data-cm-preview playsinline muted aria-label="Camera preview"></video>
 <canvas data-cm-canvas hidden></canvas>
@@ -244,12 +247,12 @@ ${signedIn ? '' : '<p class="cm-off-note"><a href="/auth/login?next=%2Fapp">Sign
 </section>
 <section class="cm-section" id="cm-gallery" aria-labelledby="cm-gallery-h">
 <div class="cm-head-row"><h2 id="cm-gallery-h">Your photos</h2>${signedIn ? `<span class="cm-count-label">${photos.length} recent</span>` : ''}</div>
-${signedIn ? (photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true })).join('')}</ul>` : empty('No photo yet. Take one above; it will appear here once Pics has it.', '/app', 'Take a photo')) : empty('Sign in to see the photos you saved to Pics.', '/auth/login?next=%2Fapp', 'Sign in with OpenVibe')}
+${signedIn ? (photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true, studioUrl })).join('')}</ul>` : empty('No photo yet. Take one above; it will appear here once Pics has it.', '/app', 'Take a photo')) : empty('Sign in to see the photos you saved to Pics.', '/auth/login?next=%2Fapp', 'Sign in with OpenVibe')}
 </section>
 </div>`;
 }
 
-function my({ viewer, cameras = [], photos = [], stills = [], counts = {}, problem = null } = {}) {
+function my({ viewer, cameras = [], photos = [], stills = [], counts = {}, problem = null, studioUrl = null } = {}) {
     return `<div class="cm-wrap" id="cm-my">
 <header class="cm-page-h"><p class="cm-kicker">My cameras</p><h1>Your cameras, your viewers</h1>
 <p class="cm-lede">Pair a camera you own. Its wall is private; a viewer sees it only while the grant you gave is active. ${Number(counts.cameras) || cameras.length} ${Number(counts.cameras) === 1 ? 'camera' : 'cameras'}, ${Number(counts.photos) || photos.length} ${Number(counts.photos) === 1 ? 'photo' : 'photos'}, ${Number(counts.stills) || stills.length} ${Number(counts.stills) === 1 ? 'still' : 'stills'}.</p></header>
@@ -275,7 +278,7 @@ ${cameras.length ? `<ul class="cm-cameras">${cameras.map(cameraCard).join('')}</
 
 <section class="cm-section" id="cm-photos" aria-labelledby="cm-photos-h">
 <div class="cm-head-row"><h2 id="cm-photos-h">Your photos</h2><a class="cm-more" href="/app">Take one${kit.icon('chevron')}</a></div>
-${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true })).join('')}</ul>` : '<p class="cm-muted">No photo yet.</p>'}
+${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true, studioUrl })).join('')}</ul>` : '<p class="cm-muted">No photo yet.</p>'}
 </section>
 
 <section class="cm-section" id="cm-stills" aria-labelledby="cm-stills-h">
@@ -285,7 +288,7 @@ ${stills.length ? `<ul class="cm-stills">${stills.map(stillCard).join('')}</ul>`
 </div>`;
 }
 
-function camera({ camera: c, grants = [], photos = [], frameUrl: frame = null, problem = null } = {}) {
+function camera({ camera: c, grants = [], photos = [], frameUrl: frame = null, problem = null, studioUrl = null } = {}) {
     const active = grants.filter((g) => g.active);
     return `<div class="cm-wrap" id="cm-camera-owner" data-camera="${esc(c.id)}">
 <header class="cm-page-h"><p class="cm-kicker">${sourceLabel(c.source)} · ${statusBadge(c.status)}</p><h1>${esc(c.name)}</h1>
@@ -322,12 +325,12 @@ ${grants.length ? `<div class="cm-table-wrap"><table class="cm-grants"><thead><t
 
 <section class="cm-section" id="cm-camera-photos" aria-labelledby="cm-camera-photos-h">
 <h2 id="cm-camera-photos-h">On the wall</h2>
-${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true })).join('')}</ul>` : '<p class="cm-muted">A photo taken with this camera chosen appears here and on the wall for an active viewer.</p>'}
+${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner: true, studioUrl })).join('')}</ul>` : '<p class="cm-muted">A photo taken with this camera chosen appears here and on the wall for an active viewer.</p>'}
 </section>
 </div>`;
 }
 
-function wall({ camera: c, access, photos = [], frameUrl: frame = null } = {}) {
+function wall({ camera: c, access, photos = [], frameUrl: frame = null, studioUrl = null } = {}) {
     const owner = access && access.owner;
     return `<div class="cm-wrap" id="cm-wall" data-camera="${esc(c.id)}">
 <header class="cm-page-h"><p class="cm-kicker">${owner ? 'Your private wall' : `Shared by @${esc(c.owner_username || 'its owner')}`}</p><h1>${esc(c.name)}</h1>
@@ -337,7 +340,7 @@ ${frame ? `<img src="${esc(frame)}" alt="The camera's current frame" width="640"
 </section>
 <section class="cm-section" id="cm-wall-photos" aria-labelledby="cm-wall-photos-h">
 <h2 id="cm-wall-photos-h">Photos on this wall</h2>
-${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner })).join('')}</ul>` : '<p class="cm-muted">The owner has not put a photo on this wall.</p>'}
+${photos.length ? `<ul class="cm-photos">${photos.map((p) => photoCard(p, { owner, studioUrl })).join('')}</ul>` : '<p class="cm-muted">The owner has not put a photo on this wall.</p>'}
 </section>
 </div>`;
 }
