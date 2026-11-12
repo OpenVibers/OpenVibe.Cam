@@ -18,7 +18,11 @@ check('the element is framework-free and Node can require it without a DOM', () 
     assert.strictEqual(typeof core.parseAttrs, 'function');
     assert.strictEqual(typeof core.drawTo, 'function');
     assert.strictEqual(typeof core.define, 'function');
-    assert.ok(!/require\(|import\s/.test(require('fs').readFileSync(require.resolve('../public/embed/ov-camera.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')), 'no bundler or runtime import');
+    const source = require('fs').readFileSync(require.resolve('../public/embed/ov-camera.js'), 'utf8');
+    assert.ok(!/require\(|import\s/.test(source.replace(/\/\*[\s\S]*?\*\//g, '')), 'no bundler or runtime import');
+    assert.ok(source.includes("CAPTURE_PATH = '/shared/ov-capture.js'"), 'it loads the core from the page\'s own /shared');
+    assert.ok(!/navigator\.mediaDevices\.getUserMedia\s*\(/.test(source), 'the element opens cameras through OVCapture, never its own getUserMedia');
+    assert.ok(!/navigator\.mediaDevices\.getDisplayMedia\s*\(/.test(source));
 });
 
 check('the filter table is exactly the API X-Filter list', () => {

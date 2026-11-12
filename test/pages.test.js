@@ -148,6 +148,11 @@ function jsonLd(html) {
             const kit = await t.get('/embed/cam-kit.js');
             assert.strictEqual(kit.status, 200);
             assert.strictEqual(kit.headers.get('access-control-allow-origin'), '*');
+            const capture = await t.get('/shared/ov-capture.js');
+            assert.strictEqual(capture.status, 200, 'the kit and <ov-camera> load the shared core from their own origin');
+            assert.match(capture.headers.get('content-type'), /javascript/);
+            assert.ok(capture.text.includes('OVCapture'), 'it is the OVCapture core');
+            assert.strictEqual(capture.headers.get('access-control-allow-origin'), '*');
             assert.ok(embed.text.includes("define('ov-camera'"), 'the embed registers the element');
             assert.ok(embed.text.includes('ov-camera:capture'), 'the embed emits the capture event');
             const plainEmbed = await t.get('/embed/ov-camera.js');
