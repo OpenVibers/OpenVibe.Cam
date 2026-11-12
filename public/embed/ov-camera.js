@@ -37,6 +37,157 @@
     var UPLOADS = ['off', 'openvibe'];
     var DEFAULT_SRC = 'https://openvibe.cam/embed/ov-camera.js';
     var SCRIPT_ORIGIN = null;
+    var CAPTURE_PATH = '/shared/ov-capture.js';
+    var capture = null;
+    var capturePending = null;
+    var remote = null;
+
+    // ── The shared capture core, from the embedding page's own origin (never another site). ──────────────────────
+    function captureSrc() {
+        try { return new URL(CAPTURE_PATH, root.location.href).href; } catch (e) { return ''; }
+    }
+
+    /** A chosen camera is that camera, and its side is exact when its id has gone stale (Live's setup). */
+    function install(core) {
+        if (!core || !core.strategies || typeof core.use !== 'function') return core;
+        if (!core.__ovCamExact && !core.__glExact) {
+            var before = core.use('constraints', function (o) {
+                var constraints = before(o || {});
+                o = o || {};
+                if (constraints.video && o.lens && o.lens !== 'main' && o.lens !== 'default' && o.lens !== '-') {
+                    var rest = { ...constraints.video };
+                    delete rest.facingMode;
+                    delete rest.deviceId;
+                    constraints.video = { ...rest, deviceId: { exact: o.lens } };
+                }
+                return constraints;
+            });
+            core.__ovCamExact = true;
+        }
+        var hasSide = core.strategies.list().some(function (s) { return s.name === 'side'; });
+        if (!hasSide) {
+            core.strategies.add({
+                name: 'side',
+                note: 'The chosen camera\'s side exactly (its id changed): the back camera stays the back camera.',
+                open: function (o, c) {
+                    if (!o.facing || o.video === false || o.mode === 'mic_only') {
+                        var e = new Error('No side to ask for');
+                        e.name = 'NotFoundError';
+                        throw e;
+                    }
+                    var height = Number(o.resolution) || 720;
+                    return c.part('getUserMedia')({
+                        video: { facingMode: { exact: o.facing }, width: { ideal: Math.round(height * 16 / 9) }, height: { ideal: height } },
+                        audio: o.mode !== 'camera_only' && o.audio !== false,
+                    });
+                },
+            }, { before: 'basic' });
+        }
+        return core;
+    }
+
+    function settingsUrl() {
+        try { return new URL('/api/v1/me/camera-settings', root.location.href).href; } catch (e) { return ''; }
+    }
+
+    function camStore() {
+        if (remote) return remote;
+        var url = settingsUrl();
+        if (!url || !root || typeof root.fetch !== 'function') return null;
+        var store = {
+            latest: null,
+            load: function () {
+                return root.fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (res) {
+                    if (!res.ok) throw new Error('No camera settings here');
+                    return res.json();
+                }).then(function (data) { store.latest = data; return data; });
+            },
+            save: function (values) {
+                return root.fetch(url, {
+                    method: 'PUT', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify(values),
+                }).then(function (res) {
+                    if (!res.ok) throw new Error('The camera settings were not saved');
+                    return res.json();
+                });
+            },
+        };
+        remote = store;
+        return store;
+    }
+
+    /** Let facing, resolution and mirror follow the person; the lens is this device's own id, applied here. */
+    function syncSettings(core) {
+        if (!core || !core.settings || typeof core.settings.sync !== 'function' || typeof core.on !== 'function') return Promise.resolve(core);
+        var store = camStore();
+        if (!store) return Promise.resolve(core);
+        return new Promise(function (resolve) {
+            var finished = false, offSynced = null, offFailed = null, timer = null;
+            function finish() {
+                if (finished) return;
+                finished = true;
+                if (offSynced) offSynced();
+                if (offFailed) offFailed();
+                if (timer) root.clearTimeout(timer);
+                resolve(core);
+            }
+            offSynced = core.on('synced', function () {
+                if (store.latest && typeof store.latest.lens === 'string' && store.latest.lens) {
+                    try { core.settings.save({ lens: store.latest.lens }); } catch (e) { /* this device keeps its own */ }
+                }
+                finish();
+            });
+            offFailed = core.on('sync-failed', finish);
+            timer = root.setTimeout(finish, 1500);
+            try { core.settings.sync(store); } catch (e) { finish(); }
+        });
+    }
+
+    function loadCapture() {
+        if (capturePending) return capturePending;
+        if (capture) return Promise.resolve(capture);
+        if (root && root.OVCapture && typeof root.OVCapture.open === 'function') {
+            capture = install(root.OVCapture);
+            capturePending = syncSettings(capture);
+            return capturePending;
+        }
+        var src = root ? captureSrc() : '';
+        if (!src || !root.document || !root.document.createElement) return Promise.reject(new Error('The camera needs this page\'s address.'));
+        capturePending = new Promise(function (resolve, reject) {
+            var tag = root.document.createElement('script');
+            tag.src = src;
+            tag.async = true;
+            tag.addEventListener('load', function () {
+                if (root.OVCapture && typeof root.OVCapture.open === 'function') {
+                    capture = install(root.OVCapture);
+                    resolve(capture);
+                } else {
+                    if (tag.remove) tag.remove();
+                    reject(new Error('The camera code loaded without OVCapture. Reload the page, then try again.'));
+                }
+            });
+            tag.addEventListener('error', function () {
+                if (tag.remove) tag.remove();
+                reject(new Error('The camera code did not load. Reload the page, then try again.'));
+            });
+            (root.document.head || root.document.documentElement).appendChild(tag);
+        }).then(syncSettings).catch(function (err) {
+            capturePending = null;
+            throw err;
+        });
+        return capturePending;
+    }
+
+    function explainedFailure(core, err, mode) {
+        if (core && typeof core.explain === 'function') {
+            try {
+                var said = core.explain(err, mode);
+                if (said && said.title) return [said.title].concat(said.steps || []).join(' ');
+            } catch (e) { /* fall back to the error's own words */ }
+        }
+        return (err && err.message) || 'The camera could not be started. Pick a picture instead.';
+    }
 
     /** "none, mono, WARM" → ['none','mono','warm']; unknown names and duplicates are dropped, empty → ['none']. */
     function parseFilters(value) {
@@ -141,6 +292,26 @@
                 }, function (err) { URL.revokeObjectURL(url); reject(err); });
             };
             img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('That file is not a picture this browser can read.')); };
+            img.src = url;
+        });
+    }
+
+    /** A captured picture through the chosen filter, so the file looks the way the preview did. */
+    function filterPhoto(blob, filter, width, height) {
+        if (!filter || filter === 'none' || !root || !root.document || !root.URL || !root.Image) return Promise.resolve(blob);
+        return new Promise(function (resolve, reject) {
+            var url = root.URL.createObjectURL(blob);
+            var img = new root.Image();
+            img.onload = function () {
+                var canvas = root.document.createElement('canvas');
+                try { drawTo(canvas, img, filter, width, height); }
+                catch (err) { root.URL.revokeObjectURL(url); reject(err); return; }
+                toBlob(canvas, 'image/jpeg', 0.92).then(function (out) {
+                    root.URL.revokeObjectURL(url);
+                    resolve(out);
+                }, function (err) { root.URL.revokeObjectURL(url); reject(err); });
+            };
+            img.onerror = function () { root.URL.revokeObjectURL(url); reject(new Error('The picture could not be read.')); };
             img.src = url;
         });
     }
@@ -292,20 +463,24 @@
 
         connectedCallback() {
             if (!this._camera) return;
+            this._explicitFacing = this.hasAttribute('facing');
             this._applyAttributes();
             this._camera.setAttribute('data-state', 'off');
             this._camera.setAttribute('data-mode', this._config.mode);
             this._camera.setAttribute('data-facing', this._config.facing);
+            this._fromCapture = true;
             this.setAttribute('facing', this._config.facing);
+            this._fromCapture = false;
         }
 
         disconnectedCallback() { this.stop(); }
 
         attributeChangedCallback(name, oldValue, newValue) {
             if (oldValue === newValue || !this._camera) return;
+            if (name === 'facing' && !this._fromCapture) this._explicitFacing = true;
             var wasFacing = this._config.facing;
             this._applyAttributes();
-            if (name === 'facing' && this._stream && wasFacing !== this._config.facing) {
+            if (name === 'facing' && !this._fromCapture && this._stream && wasFacing !== this._config.facing) {
                 var self = this;
                 this.stop();
                 this.start().catch(function () { /* start() already dispatched the error */ });
@@ -318,25 +493,29 @@
             var self = this;
             if (this._stream) return Promise.resolve();
             if (this._starting) return this._starting;
-            if (!root.navigator || !root.navigator.mediaDevices || !root.navigator.mediaDevices.getUserMedia) {
-                this._say('This browser has no camera input. Pick a picture instead.');
-                this._error('camera_unavailable', 'This browser has no camera input. Pick a picture instead.');
-                return Promise.resolve();
-            }
             this._say('Turning the camera on…');
             this._camera.setAttribute('data-state', 'starting');
             var seq = (this._startSeq || 0) + 1;
             this._startSeq = seq;
-            this._starting = root.navigator.mediaDevices.getUserMedia({
-                video: { facingMode: { ideal: this._config.facing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
-                audio: false
+            this._starting = loadCapture().then(function (core) {
+                self._capture = core;
+                var options = { mode: 'camera_only', video: true, audio: false };
+                if (self._explicitFacing) options.facing = self._config.facing;
+                return core.open(options);
             }).then(function (stream) {
                 if (seq !== self._startSeq) { stream.getTracks().forEach(function (t) { t.stop(); }); return false; }
                 self._stream = stream;
                 self._video.srcObject = stream;
                 var track = stream.getVideoTracks()[0];
                 var settings = track && track.getSettings ? track.getSettings() : {};
-                self._camera.setAttribute('data-facing', settings.facingMode || (self._config.facing === 'user' ? 'user' : 'environment'));
+                var saved = !self._explicitFacing && self._capture && self._capture.settings ? self._capture.settings.load() : {};
+                var actual = settings.facingMode || saved.facing;
+                self._camera.setAttribute('data-facing', actual || (self._config.facing === 'user' ? 'user' : 'environment'));
+                if (actual && actual !== self._config.facing && !self._explicitFacing) {
+                    self._fromCapture = true;
+                    self.setAttribute('facing', actual);
+                    self._fromCapture = false;
+                }
                 return self._video.play().catch(function () { /* muted autoplay is allowed; a blocked play is not fatal */ }).then(function () { return true; });
             }).then(function (ok) {
                 if (ok === false || seq !== self._startSeq) return;
@@ -347,9 +526,7 @@
                 if (seq !== self._startSeq) return;
                 self._camera.setAttribute('data-state', 'off');
                 var code = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError') ? 'permission_denied' : 'camera_unavailable';
-                var message = code === 'permission_denied'
-                    ? 'The camera was not allowed. Allow it in the browser, or pick a picture.'
-                    : 'The camera could not be started. Pick a picture instead.';
+                var message = explainedFailure(self._capture, err, 'camera_only');
                 self._say(message);
                 self._error(code, message);
             }).then(function () { self._starting = null; });
@@ -408,7 +585,11 @@
         /** Switch front/back; if the camera is on it restarts on the other one. Resolves to the new facing. */
         flip() {
             var next = this._config.facing === 'user' ? 'environment' : 'user';
+            this._explicitFacing = true;
             this.setAttribute('facing', next);
+            loadCapture().then(function (core) {
+                if (core.settings) core.settings.save({ facing: next });
+            }).catch(function () { /* the attribute still flips this camera */ });
             return Promise.resolve(next);
         }
 
@@ -496,22 +677,30 @@
 
         _snap() {
             var self = this;
-            var size;
-            try { size = drawTo(this._canvas, this._video, this._selectedFilter); }
-            catch (err) { this._error('capture_failed', err.message); return Promise.resolve(null); }
+            var size = {
+                width: this._video.videoWidth || 1280,
+                height: this._video.videoHeight || 720,
+            };
             if (this._shootBtn) {
                 this._shootBtn.classList.add('is-firing');
                 setTimeout(function () { if (self._shootBtn) self._shootBtn.classList.remove('is-firing'); }, 160);
             }
             if (root.navigator && root.navigator.vibrate) { try { root.navigator.vibrate(12); } catch (e) { /* not every browser */ } }
-            return toBlob(this._canvas, 'image/jpeg', 0.92).then(function (blob) {
+            return loadCapture().then(function (core) {
+                self._capture = core;
+                var settings = core.settings && typeof core.settings.load === 'function' ? core.settings.load() : {};
+                var mirror = !!settings.mirror && self._config.facing === 'user';
+                return core.photo(self._stream, { mirror: mirror });
+            }).then(function (blob) {
+                return filterPhoto(blob, self._selectedFilter, size.width, size.height);
+            }).then(function (blob) {
                 var detail = { blob: blob, width: size.width, height: size.height, filter: self._selectedFilter };
                 self._showThumb(blob);
                 self.dispatchEvent(new root.CustomEvent('ov-camera:capture', { detail: detail, bubbles: true, composed: true }));
                 if (self._config.upload === 'openvibe') { self._upload(detail); }
                 return detail;
             }).catch(function (err) {
-                self._error('capture_failed', err.message);
+                self._error('capture_failed', explainedFailure(self._capture, err, 'camera_only'));
                 return null;
             });
         }

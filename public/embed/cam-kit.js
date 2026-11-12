@@ -7,49 +7,208 @@
     var cssUrl = script && script.src ? new URL('cam-kit.css', script.src).href : 'https://openvibe.cam/embed/cam-kit.css';
     var active = null;
     var MODES = ['video', 'photo', 'screen'];
+    var CAPTURE_PATH = '/shared/ov-capture.js';
+    var capture = null;
+    var capturePending = null;
+    var remote = null;
+
+    // ── The shared capture core, from this page's own origin (the same arrangement Live's go-live page uses). ─────
+    function captureSrc() {
+        try { return new URL(CAPTURE_PATH, win.location.href).href; } catch (e) { return ''; }
+    }
+
+    /** A chosen camera is that camera, and its side is exact when its id has gone stale. */
+    function install(core) {
+        if (!core || !core.strategies || typeof core.use !== 'function') return core;
+        if (!core.__ovCamExact && !core.__glExact) {
+            var before = core.use('constraints', function (o) {
+                var constraints = before(o || {});
+                o = o || {};
+                if (constraints.video && o.lens && o.lens !== 'main' && o.lens !== 'default' && o.lens !== '-') {
+                    var rest = { ...constraints.video };
+                    delete rest.facingMode;
+                    delete rest.deviceId;
+                    constraints.video = { ...rest, deviceId: { exact: o.lens } };
+                }
+                return constraints;
+            });
+            core.__ovCamExact = true;
+        }
+        var hasSide = core.strategies.list().some(function (s) { return s.name === 'side'; });
+        if (!hasSide) {
+            core.strategies.add({
+                name: 'side',
+                note: 'The chosen camera\'s side exactly (its id changed): the back camera stays the back camera.',
+                open: function (o, c) {
+                    if (!o.facing || o.video === false || o.mode === 'mic_only') {
+                        var e = new Error('No side to ask for');
+                        e.name = 'NotFoundError';
+                        throw e;
+                    }
+                    var height = Number(o.resolution) || 720;
+                    return c.part('getUserMedia')({
+                        video: { facingMode: { exact: o.facing }, width: { ideal: Math.round(height * 16 / 9) }, height: { ideal: height } },
+                        audio: o.mode !== 'camera_only' && o.audio !== false,
+                    });
+                },
+            }, { before: 'basic' });
+        }
+        return core;
+    }
+
+    function settingsUrl() {
+        try { return new URL('/api/v1/me/camera-settings', win.location.href).href; } catch (e) { return ''; }
+    }
+
+    /** Cam's camera settings for the person, when this page is on a site that serves them. */
+    function camStore() {
+        if (remote) return remote;
+        var url = settingsUrl();
+        if (!url || typeof win.fetch !== 'function') return null;
+        var store = {
+            latest: null,
+            load: function () {
+                return win.fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(function (res) {
+                    if (!res.ok) throw new Error('No camera settings here');
+                    return res.json();
+                }).then(function (data) { store.latest = data; return data; });
+            },
+            save: function (values) {
+                return win.fetch(url, {
+                    method: 'PUT', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify(values),
+                }).then(function (res) {
+                    if (!res.ok) throw new Error('The camera settings were not saved');
+                    return res.json();
+                });
+            },
+        };
+        remote = store;
+        return store;
+    }
+
+    /** Let facing, resolution and mirror follow the person; the lens is this device's own id, applied here. */
+    function syncSettings(core) {
+        if (!core || !core.settings || typeof core.settings.sync !== 'function' || typeof core.on !== 'function') return Promise.resolve(core);
+        var store = camStore();
+        if (!store) return Promise.resolve(core);
+        return new Promise(function (resolve) {
+            var finished = false, offSynced = null, offFailed = null, timer = null;
+            function finish() {
+                if (finished) return;
+                finished = true;
+                if (offSynced) offSynced();
+                if (offFailed) offFailed();
+                if (timer) win.clearTimeout(timer);
+                resolve(core);
+            }
+            offSynced = core.on('synced', function () {
+                if (store.latest && typeof store.latest.lens === 'string' && store.latest.lens) {
+                    try { core.settings.save({ lens: store.latest.lens }); } catch (e) { /* this device keeps its own */ }
+                }
+                finish();
+            });
+            offFailed = core.on('sync-failed', finish);
+            timer = win.setTimeout(finish, 1500);
+            try { core.settings.sync(store); } catch (e) { finish(); }
+        });
+    }
+
+    function loadCapture() {
+        if (capturePending) return capturePending;
+        if (capture) return Promise.resolve(capture);
+        if (win.OVCapture && typeof win.OVCapture.open === 'function') {
+            capture = install(win.OVCapture);
+            capturePending = syncSettings(capture);
+            return capturePending;
+        }
+        var src = captureSrc();
+        if (!src || !win.document || !win.document.createElement) return Promise.reject(new Error('The camera needs this page\'s address.'));
+        capturePending = new Promise(function (resolve, reject) {
+            var tag = win.document.createElement('script');
+            tag.src = src;
+            tag.async = true;
+            tag.addEventListener('load', function () {
+                if (win.OVCapture && typeof win.OVCapture.open === 'function') {
+                    capture = install(win.OVCapture);
+                    resolve(capture);
+                } else {
+                    if (tag.remove) tag.remove();
+                    reject(new Error('The camera code loaded without OVCapture. Reload the page, then try again.'));
+                }
+            });
+            tag.addEventListener('error', function () {
+                if (tag.remove) tag.remove();
+                reject(new Error('The camera code did not load. Reload the page, then try again.'));
+            });
+            (win.document.head || win.document.documentElement).appendChild(tag);
+        }).then(syncSettings).catch(function (err) {
+            capturePending = null;
+            throw err;
+        });
+        return capturePending;
+    }
+
+    function constraintsFor(o) {
+        o = o || {};
+        var height = Number(o.resolution) || 720;
+        return {
+            video: o.video === false ? false : {
+                facingMode: { ideal: o.facing || 'user' },
+                ...(o.lens && o.lens !== 'main' && o.lens !== 'default' ? { deviceId: { ideal: o.lens } } : {}),
+                width: { ideal: Math.round(height * 16 / 9) }, height: { ideal: height },
+            },
+            audio: o.audio === false ? false : o.mic && o.mic !== 'default' ? { deviceId: { ideal: o.mic } } : true,
+        };
+    }
+
+    function networkFor() {
+        if (win.navigator.onLine === false) return 'offline';
+        var c = win.navigator.connection || win.navigator.mozConnection || win.navigator.webkitConnection;
+        return c && (/2g|3g/.test(c.effectiveType || '') || c.downlink && c.downlink < 2.5) ? 'weak' : 'good';
+    }
+
+    function meterFor(stream, onLevel) {
+        var AC = win.AudioContext || win.webkitAudioContext;
+        if (!AC || !stream.getAudioTracks().length) return function () {};
+        var ctx = new AC(), analyser = ctx.createAnalyser(), data = new Uint8Array(512), frame = 0, closed = false;
+        analyser.fftSize = 512;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(function () {});
+            win.document.addEventListener('pointerdown', function () { ctx.resume().catch(function () {}); }, { once: true, capture: true });
+        }
+        function tick() {
+            if (closed) return;
+            analyser.getByteTimeDomainData(data);
+            var sum = 0;
+            for (var i = 0; i < data.length; i++) { var d = (data[i] - 128) / 128; sum += d * d; }
+            onLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
+            frame = win.requestAnimationFrame(tick);
+        }
+        frame = win.requestAnimationFrame(tick);
+        return function () { closed = true; win.cancelAnimationFrame(frame); ctx.close().catch(function () {}); };
+    }
 
     // Shared capture primitives for a site's in-place studio. Nothing requests permission until open() is called.
     var core = Object.freeze({
-        devices: function () { return win.navigator.mediaDevices.enumerateDevices(); },
-        constraints: function (o) {
-            o = o || {};
-            var height = Number(o.resolution) || 720;
-            return {
-                video: o.video === false ? false : {
-                    facingMode: { ideal: o.facing || 'user' },
-                    ...(o.lens && o.lens !== 'main' && o.lens !== 'default' ? { deviceId: { ideal: o.lens } } : {}),
-                    width: { ideal: Math.round(height * 16 / 9) }, height: { ideal: height },
-                },
-                audio: o.audio === false ? false : o.mic && o.mic !== 'default' ? { deviceId: { ideal: o.mic } } : true,
-            };
+        devices: function () {
+            return loadCapture().then(function (c) { return c.devices(); }, function () { return win.navigator.mediaDevices.enumerateDevices(); });
         },
-        open: function (o) { return win.navigator.mediaDevices.getUserMedia(core.constraints(o)); },
+        constraints: function (o) {
+            if (capture && typeof capture.part === 'function') return capture.part('constraints')(o || {});
+            return constraintsFor(o);
+        },
+        open: function (o) { return loadCapture().then(function (c) { return c.open(o || {}); }); },
         stop: stopTracks,
         network: function () {
-            if (win.navigator.onLine === false) return 'offline';
-            var c = win.navigator.connection || win.navigator.mozConnection || win.navigator.webkitConnection;
-            return c && (/2g|3g/.test(c.effectiveType || '') || c.downlink && c.downlink < 2.5) ? 'weak' : 'good';
+            if (capture && typeof capture.network === 'function') return capture.network();
+            return networkFor();
         },
         meter: function (stream, onLevel) {
-            var AC = win.AudioContext || win.webkitAudioContext;
-            if (!AC || !stream.getAudioTracks().length) return function () {};
-            var ctx = new AC(), analyser = ctx.createAnalyser(), data = new Uint8Array(512), frame = 0, closed = false;
-            analyser.fftSize = 512;
-            ctx.createMediaStreamSource(stream).connect(analyser);
-            if (ctx.state === 'suspended') {
-                ctx.resume().catch(function () {});
-                win.document.addEventListener('pointerdown', function () { ctx.resume().catch(function () {}); }, { once: true, capture: true });
-            }
-            function tick() {
-                if (closed) return;
-                analyser.getByteTimeDomainData(data);
-                var sum = 0;
-                for (var i = 0; i < data.length; i++) { var d = (data[i] - 128) / 128; sum += d * d; }
-                onLevel(Math.min(1, Math.sqrt(sum / data.length) * 4));
-                frame = win.requestAnimationFrame(tick);
-            }
-            frame = win.requestAnimationFrame(tick);
-            return function () { closed = true; win.cancelAnimationFrame(frame); ctx.close().catch(function () {}); };
+            if (capture && typeof capture.meter === 'function') return capture.meter(stream, onLevel);
+            return meterFor(stream, onLevel);
         },
     });
 
@@ -109,8 +268,9 @@
             var review = $('.review');
             var reviewVideo = $('.review video');
             var reviewImage = $('.review img');
-            var stream = null, recorder = null, chunks = [], blob = null, url = null, started = 0, tick = null, autoStop = null;
-            var facing = 'user', torch = false, phase = 'permission', done = false, lastFocus = win.document.activeElement;
+            var stream = null, recorder = null, blob = null, url = null, tick = null, autoStop = null;
+            var facing = 'user', facingLoaded = false, torch = false, phase = 'permission', done = false, lastFocus = win.document.activeElement;
+            var captureCore = null;
             var duration = 0, trimStart = 0, trimEnd = 0, timer = opts.timer;
             active = host;
             $('.mode-label').textContent = opts.mode === 'photo' ? 'Photo' : opts.mode === 'screen' ? 'Screen' : 'Video';
@@ -129,16 +289,25 @@
             function close(result, error) {
                 if (done) return;
                 done = true; cleanRecording();
-                if (recorder && recorder.state !== 'inactive') recorder.stop();
+                if (recorder) { try { recorder.cancel(); } catch (e) { /* already stopped */ } recorder = null; }
                 stopTracks(stream); stream = null; clearBlob();
                 win.document.removeEventListener('keydown', keydown, true);
                 host.remove(); active = null;
                 if (lastFocus && lastFocus.focus) lastFocus.focus();
                 if (error) reject(error); else resolve(result || null);
             }
+            /** What happened and what to tap, in OVCapture's plain words. */
+            function explained(err, mode) {
+                if (captureCore && typeof captureCore.explain === 'function') {
+                    try {
+                        var said = captureCore.explain(err, mode);
+                        if (said && said.title) return [said.title].concat(said.steps || []).join(' ');
+                    } catch (e) { /* fall back to the error's own words */ }
+                }
+                return (err && err.message) || 'This camera is unavailable.';
+            }
             function permissionError(err) {
-                var denied = err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError');
-                say(denied ? 'Permission was not granted. You can try again.' : (err && err.message) || 'This camera is unavailable.');
+                say(explained(err, opts.mode === 'screen' ? 'screen' : opts.mode === 'photo' ? 'camera_only' : 'camera'));
                 phase = 'permission'; $('.permission').hidden = false;
             }
             function updateTorch() {
@@ -148,9 +317,26 @@
                 if (caps.torch) $('.torch').setAttribute('aria-pressed', String(torch));
             }
             async function start() {
-                if (!supported(opts.mode, win.navigator)) { say('This browser cannot use the selected camera mode.'); return; }
                 try {
-                    var next = opts.mode === 'screen' ? await win.navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }) : await core.open({ facing: facing, audio: opts.mode === 'video' });
+                    captureCore = await loadCapture();
+                } catch (err) { permissionError(err); return; }
+                var can = typeof captureCore.can === 'function' ? captureCore.can() : null;
+                var allowed = can ? (opts.mode === 'screen' ? can.screen : can.camera && (opts.mode === 'photo' || can.record))
+                    : supported(opts.mode, win.navigator);
+                if (!allowed) {
+                    var noApi = new Error(opts.mode === 'screen' ? 'This browser has no screen sharing here' : 'This browser has no camera here');
+                    noApi.name = 'NoApi';
+                    permissionError(noApi);
+                    return;
+                }
+                try {
+                    if (!facingLoaded) {
+                        var saved = captureCore.settings && typeof captureCore.settings.load === 'function' ? captureCore.settings.load() : {};
+                        if (saved.facing === 'user' || saved.facing === 'environment') facing = saved.facing;
+                        facingLoaded = true;
+                    }
+                    var next = opts.mode === 'screen' ? await captureCore.screen({ video: true, audio: true })
+                        : await captureCore.open({ facing: facing, audio: opts.mode === 'video' });
                     if (done) { stopTracks(next); return; }
                     stopTracks(stream); stream = next;
                     preview.srcObject = stream; await preview.play();
@@ -187,34 +373,34 @@
                 $('.use').focus();
             }
             async function capturePhoto() {
-                var canvas = win.document.createElement('canvas');
-                canvas.width = preview.videoWidth || 1280; canvas.height = preview.videoHeight || 720;
-                canvas.getContext('2d').drawImage(preview, 0, 0, canvas.width, canvas.height);
-                var image = await new Promise(function (resolveImage) { canvas.toBlob(resolveImage, 'image/jpeg', 0.92); });
+                var settings = captureCore.settings && typeof captureCore.settings.load === 'function' ? captureCore.settings.load() : {};
+                var image = await captureCore.photo(stream, { mirror: !!settings.mirror && facing === 'user' });
                 if (!image) throw new Error('The photo could not be encoded.');
                 showReview(image, 0);
             }
             function stopRecord() {
                 if (phase !== 'recording' || !recorder) return;
-                phase = 'stopping'; cleanRecording(); recorder.stop();
+                var stopped = recorder;
+                phase = 'stopping'; cleanRecording();
+                stopped.stop().then(function (recorded) {
+                    if (recorder === stopped) recorder = null;
+                    if (done || phase !== 'stopping') return;
+                    if (!recorded || !recorded.size) { phase = 'ready'; say('No video was recorded. Try again.'); return; }
+                    showReview(recorded, stopped.seconds());
+                }).catch(function (err) {
+                    if (recorder === stopped) recorder = null;
+                    if (done || phase !== 'stopping') return;
+                    phase = 'ready';
+                    say(explained(err, 'camera'));
+                });
             }
             function record() {
-                chunks = [];
-                var type = mime(); recorder = new win.MediaRecorder(stream, type ? { mimeType: type } : undefined);
-                recorder.ondataavailable = function (event) { if (event.data && event.data.size) chunks.push(event.data); };
-                recorder.onerror = function () { say('Recording failed. Please retake.'); };
-                recorder.onstop = function () {
-                    if (done || phase !== 'stopping') return;
-                    var length = Math.min(opts.maxSeconds, (Date.now() - started) / 1000);
-                    var recorded = new Blob(chunks, { type: recorder.mimeType || type || 'video/webm' });
-                    if (!recorded.size) { phase = 'ready'; say('No video was recorded. Try again.'); return; }
-                    showReview(recorded, length);
-                };
-                recorder.start(200); started = Date.now(); phase = 'recording';
+                recorder = captureCore.record(stream, { maxSeconds: opts.maxSeconds });
+                phase = 'recording';
                 $('.shutter').classList.add('recording');
                 $('.shutter').style.setProperty('--progress', '0%');
                 tick = win.setInterval(function () {
-                    var elapsed = Math.min(opts.maxSeconds, (Date.now() - started) / 1000);
+                    var elapsed = recorder ? recorder.seconds() : 0;
                     $('.clock').textContent = secondsText(elapsed);
                     $('.shutter').style.setProperty('--progress', (100 * elapsed / opts.maxSeconds) + '%');
                 }, 100);
@@ -226,7 +412,7 @@
                 if (!(await countdown())) { if (timer) return; }
                 if (done || phase !== 'ready') return;
                 try { if (opts.mode === 'photo') await capturePhoto(); else record(); }
-                catch (err) { phase = 'ready'; say(err.message || 'Capture failed.'); }
+                catch (err) { phase = 'ready'; say(explained(err, opts.mode === 'photo' ? 'camera_only' : 'camera')); }
             }
             function updateTrim() {
                 var startInput = $('.trim-start'), endInput = $('.trim-end');
@@ -269,7 +455,9 @@
             $('.shutter').onclick = shutter;
             $('.flip').onclick = async function () {
                 if (phase !== 'ready') return;
-                facing = facing === 'user' ? 'environment' : 'user'; torch = false; await start();
+                facing = facing === 'user' ? 'environment' : 'user'; torch = false;
+                if (captureCore && captureCore.settings) captureCore.settings.save({ facing: facing });
+                await start();
             };
             $('.torch').onclick = async function () {
                 var track = stream && stream.getVideoTracks()[0]; if (!track) return;
