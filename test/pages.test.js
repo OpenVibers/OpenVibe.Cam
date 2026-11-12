@@ -134,7 +134,7 @@ function jsonLd(html) {
             assert.strictEqual(hashed.status, 200);
             assert.strictEqual(hashed.headers.get('cache-control'), 'public, max-age=31536000, immutable');
             const wrong = await t.get('/css/cam.css?v=deadbeefdeadbeef');
-            assert.strictEqual(wrong.headers.get('cache-control'), 'public, max-age=300, stale-while-revalidate=86400');
+            assert.strictEqual(wrong.headers.get('cache-control'), 'public, max-age=300, stale-while-revalidate=300');
             const js = await t.get('/js/cam.js');
             assert.strictEqual(js.status, 200);
             assert.match(js.headers.get('content-type'), /javascript/);
@@ -158,7 +158,7 @@ function jsonLd(html) {
             const plainEmbed = await t.get('/embed/ov-camera.js');
             assert.strictEqual(plainEmbed.status, 200);
             assert.match(plainEmbed.headers.get('content-type'), /javascript/);
-            assert.strictEqual(plainEmbed.headers.get('cache-control'), 'public, max-age=300, stale-while-revalidate=86400');
+            assert.strictEqual(plainEmbed.headers.get('cache-control'), 'public, max-age=300, stale-while-revalidate=300');
             const robots = await t.get('/robots.txt');
             assert.match(robots.text, /Disallow: \/w\//);
             assert.match(robots.text, /Disallow: \/s\//);
