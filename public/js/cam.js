@@ -26,6 +26,10 @@
     }
     window.addEventListener('pagehide', off);
     document.addEventListener('ov:boost:before', off);
+    // What one wiring added to document, removed when boost swaps the page out: a listener left behind holds the old
+    // camera page (the release check's navigation test, 11-15: +430 nodes and a visibilitychange listener a visit).
+    var unwire = null;
+    document.addEventListener('ov:boost:before', function () { if (unwire) { unwire(); unwire = null; } });
 
     // The camera app is wired when its page is shown: on load, and when boost swaps it in (a link from the home or the
     // navbar). It used to be wired only on load, so a visit from another page left a camera that did nothing.
@@ -290,7 +294,9 @@
             liveFrame.addEventListener('load', function () { liveFrame.hidden = false; if (liveEmpty) liveEmpty.hidden = true; });
             liveFrame.addEventListener('error', function () { liveFrame.hidden = true; if (liveSel) liveSay(liveSel.name + ' has no picture right now.'); });
         }
-        document.addEventListener('visibilitychange', function () { if (!document.hidden && mode === 'live') refreshFrame(); });
+        function onVisible() { if (!document.hidden && mode === 'live') refreshFrame(); }
+        document.addEventListener('visibilitychange', onVisible);
+        unwire = function () { document.removeEventListener('visibilitychange', onVisible); };
         function takeStill() {
             if (!liveSel) { say('Pick who is live first.'); return; }
             if (busy) return;
