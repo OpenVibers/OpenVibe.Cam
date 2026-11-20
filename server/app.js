@@ -90,7 +90,7 @@ async function createApp(opts = {}) {
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://openvibe.network', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
                 fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
                 imgSrc: ["'self'", 'data:', 'blob:', 'https://openvibe.network', 'https://openvibe.media', 'https://openvibe.pics'],
-                mediaSrc: ["'self'", 'blob:'],
+                mediaSrc: ["'self'", 'blob:', 'https:'],
                 connectSrc: ["'self'", 'https://openvibe.network', 'https://openvibe.chat', 'https://cloudflareinsights.com', 'https://openvibe.events'],
                 frameSrc: ["'self'", 'https://openvibe.network'],
                 frameAncestors: ["'none'"],
