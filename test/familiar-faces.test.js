@@ -123,9 +123,15 @@ const DATA_URL = `data:image/png;base64,${Buffer.from('not-a-real-png').toString
             assert.strictEqual(r.json().notification.skipped, 'muted');
         });
 
+        // Two hours either side of now, in UTC (a window across midnight is the quiet hours' own case).
+        const aroundNow = () => {
+            const at = (ms) => new Date(ms).toISOString().slice(11, 16);
+            return { start: at(Date.now() - 2 * 3600e3), end: at(Date.now() + 2 * 3600e3) };
+        };
         await check('quiet hours hold the notification, not the event', async () => {
             const quiet = await t.get(`/api/v1/cameras/${camera.id}/familiar-faces`, {
-                as: alice, method: 'PUT', json: { enabled: true, quiet_hours: { enabled: true, start: '00:00', end: '23:59', tz: 'UTC' } },
+                // A window around now (00:00-23:59 left the last minute of the day out: the forge ran it at 23:59 UTC).
+                as: alice, method: 'PUT', json: { enabled: true, quiet_hours: { enabled: true, ...aroundNow(), tz: 'UTC' } },
             });
             assert.strictEqual(quiet.status, 200, quiet.text);
             const r = await t.get(`/api/v1/cameras/${camera.id}/events`, { as: alice, json: { kind: 'package' } });
